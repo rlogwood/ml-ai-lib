@@ -20,13 +20,18 @@ def upload_lib(repo_url='https://github.com/rlogwood/fs-ml-lib.git', lib_dir=Non
         import shutil
         shutil.rmtree(lib_dir)
 
-    if os.path.exists(lib_dir):
+    git_dir = os.path.join(lib_dir, '.git')
+
+    if os.path.exists(git_dir):
         os.system(f'cd {lib_dir} && git pull')
         print(f"✓ Pulled latest lib files to {lib_dir}")
     else:
+        # Remove empty/corrupt directory if it exists
+        if os.path.exists(lib_dir):
+            import shutil
+            shutil.rmtree(lib_dir)
         os.system(f'git clone {repo_url} {lib_dir}')
         print(f"✓ Cloned lib files to {lib_dir}")
-
 
 def setup_paths():
     """Add lib to Python path."""
