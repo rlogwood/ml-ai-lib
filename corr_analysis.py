@@ -6,7 +6,12 @@ import pandas as pd
 from pprint import pprint
 from scipy.sparse import coo_matrix
 
-import lib.text_util as tu
+#import text_util as tu
+# class_imbalance.py
+try:
+    import lib.text_util as tu
+except ImportError:
+    import text_util as tu
 
 
 @dataclass

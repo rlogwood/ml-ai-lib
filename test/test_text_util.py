@@ -1,4 +1,4 @@
-import lib.text_util as tu
+import text_util as tu
 
 
 def test_something(capsys):

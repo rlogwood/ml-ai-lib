@@ -14,9 +14,16 @@ import pandas as pd
 #     import utility as utl
 #     import imputer as im
 
-import lib.text_util as tu
+#import text_util as tu
 #import utility as utl
 #import imputer as im
+
+# class_imbalance.py
+try:
+    import lib.text_util as tu
+except ImportError:
+    import text_util as tu
+
 
 @dataclass
 class ClassAnalysisItem:
