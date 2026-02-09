@@ -11,10 +11,12 @@ def is_colab():
 def upload_lib(repo_url='https://github.com/rlogwood/fs-ml-lib.git', lib_dir=None, force_refresh=False):
     """Clone/pull lib files from public GitHub repo."""
     if not is_colab():
-        print("Not in Colab, using local lib files")
+        print("Running locally, NOT in Google Colab, using local lib files")
         return
 
+
     lib_dir = lib_dir or '/content/lib'
+    print("Running in Google Colab, uploading lib files to:", lib_dir)
 
     if force_refresh and os.path.exists(lib_dir):
         import shutil
