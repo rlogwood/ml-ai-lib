@@ -70,6 +70,9 @@ import lib.corr_analysis as ca
 import lib.utility as utl
 import lib.data_downloader as ddl
 import lib.class_imbalance as cib
+import lib.feature_engineering as fe
+import lib.model_evaluator as me
+import lib.model_trainer as mt
 
 # Export all for 'from notebook_stubs import *'
 __all__ = [
@@ -84,5 +87,5 @@ __all__ = [
     'precision_score', 'recall_score', 'f1_score', 'roc_auc_score', 'roc_curve',
     'precision_recall_curve', 'LabelEncoder', 'StandardScaler', 'train_test_split', 'compute_class_weight',
     'RandomForestClassifier', 'plt', 'sns', 'Image', 'display', 'HTML',
-    'tu', 'wr', 'dc', 'da', 'ca', 'utl', 'ddl', 'cib'
+    'tu', 'wr', 'dc', 'da', 'ca', 'utl', 'ddl', 'cib', 'fe', 'me', 'mt'
 ]

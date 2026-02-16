@@ -272,6 +272,9 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
     import lib.utility as utl
     import lib.data_downloader as ddl
     import lib.class_imbalance as cib
+    import lib.feature_engineering as fe
+    import lib.model_evaluator as me
+    import lib.model_trainer as mt
 
     modules_to_inject.update({
         'tu': tu,
@@ -281,7 +284,10 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
         'ca': ca,
         'utl': utl,
         'ddl': ddl,
-        'cib': cib
+        'cib': cib,
+        'fe': fe,
+        'me': me,
+        'mt': mt
     })
 
     # Reload modules after code changes
