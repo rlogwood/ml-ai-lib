@@ -27,6 +27,7 @@ def upload_lib(repo_url='https://github.com/rlogwood/fs-ml-lib.git', lib_dir=Non
     if os.path.exists(git_dir):
         os.system(f'cd {lib_dir} && git pull')
         print(f"✓ Pulled latest lib files to {lib_dir}")
+        reload_lib_modules()
     else:
         # Remove empty/corrupt directory if it exists
         if os.path.exists(lib_dir):
