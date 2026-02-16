@@ -263,6 +263,7 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
     import lib.corr_analysis as ca
     import lib.utility as utl
     import lib.data_downloader as ddl
+    import lib.class_imbalance as cib
 
     modules_to_inject.update({
         'tu': tu,
@@ -271,7 +272,8 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
         'da': da,
         'ca': ca,
         'utl': utl,
-        'ddl': ddl
+        'ddl': ddl,
+        'cib': cib
     })
 
     # Reload modules after code changes
