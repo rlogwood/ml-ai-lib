@@ -14,24 +14,43 @@ def is_notebook():
     return False
 
 
-def is_pycharm():
+def _perform_pycharm_check():
     """Check if the current environment is hosted by PyCharm or other JetBrains IDEs."""
-    # 1. Check for environment variables set by JetBrains IDEs
-    # PyCharm sometimes uses different markers in Terminal vs. Run vs. Debug vs. Jupyter
-    jetbrains_markers = ["PYCHARM", "JB_IDE", "INTELLIJ_ARGS"]
-    if any(any(marker in key.upper() for marker in jetbrains_markers) for key in os.environ):
+    """Detect if running in PyCharm (including Jupyter notebooks launched from PyCharm)"""
+
+    # Method 1: Check for PyCharm-specific env vars
+    if 'PYCHARM_HOSTED' in os.environ:
         return True
 
-    # 2. Check for the JetBrains terminal emulator specifically
-    if os.environ.get("TERMINAL_EMULATOR") == "JetBrains-JediTerm":
+    # Method 2: Check for PyDev debugger (used by PyCharm)
+    if 'PYDEVD_USE_FRAME_EVAL' in os.environ:
         return True
 
+    # Method 3: Check sys.modules for PyCharm debugger/tools
+    pycharm_modules = ['pydevd', 'pydev_ipython', '_pydev_bundle', 'pydev_console']
+    if any(mod in sys.modules for mod in pycharm_modules):
+        return True
 
-    # 'pydev_ipython' and 'pydevd' are injected by PyCharm for its rich integration
-    #  but these modules will also be present in jupyter lab
-    #  any(m in sys.modules for m in ["pydev_ipython", "pydevd"]):
+    # Method 4: Check if pydevd is in sys.path
+    if any('pycharm' in path.lower() or 'pydevd' in path.lower() for path in sys.path):
+        return True
+
+    # Method 5: Check for JetBrains Toolbox in PATH (weak signal)
+    path_env = os.environ.get('PATH', '')
+    if 'JetBrains' in path_env:
+        return True
 
     return False
+
+
+_pycharm_check_cache = None
+def is_pycharm():
+    """Check if running specifically in a PyCharm environment."""
+    # this check will be called a lot, so cache the result
+    global _pycharm_check_cache
+    if _pycharm_check_cache is None:
+        _pycharm_check_cache = _perform_pycharm_check()
+    return _pycharm_check_cache
 
 
 def is_pycharm_notebook():

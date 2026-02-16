@@ -50,3 +50,29 @@ def show_breakdown(df, col1, col2, from_val: float = None, to_val: float = None)
     # summary = df.pivot_table(index=col1, columns=col2, aggfunc='size', fill_value=0)
     # print_summary('pivot_table')
 
+
+def show_env():
+    import os
+    from textwrap import wrap
+
+    env_vars = dict(os.environ)
+
+    print("\n" + "=" * 100)
+    print(f"{'ENVIRONMENT VARIABLES':^100}")
+    print("=" * 100)
+    print(f"Total: {len(env_vars)} variables\n")
+
+    for key in sorted(env_vars.keys()):
+        value = env_vars[key]
+
+        # Wrap long values across multiple lines with indentation
+        if len(value) > 80:
+            wrapped = wrap(value, width=80)
+            print(f"\033[1m{key}\033[0m:")
+            for line in wrapped:
+                print(f"  {line}")
+            print()
+        else:
+            print(f"\033[1m{key:<35}\033[0m = {value}")
+
+    print("=" * 100 + "\n")
