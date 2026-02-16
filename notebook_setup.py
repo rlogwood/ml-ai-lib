@@ -220,13 +220,19 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
 
     # Sklearn imports (conditional)
     if not config.get('skip_sklearn', False):
-        from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+        from sklearn.metrics import (confusion_matrix, classification_report, accuracy_score,
+                                      precision_score, recall_score, f1_score, roc_auc_score, roc_curve)
         from sklearn.preprocessing import LabelEncoder, StandardScaler
         from sklearn.model_selection import train_test_split
         modules_to_inject.update({
             'confusion_matrix': confusion_matrix,
             'classification_report': classification_report,
             'accuracy_score': accuracy_score,
+            'precision_score': precision_score,
+            'recall_score': recall_score,
+            'f1_score': f1_score,
+            'roc_auc_score': roc_auc_score,
+            'roc_curve': roc_curve,
             'LabelEncoder': LabelEncoder,
             'StandardScaler': StandardScaler,
             'train_test_split': train_test_split
