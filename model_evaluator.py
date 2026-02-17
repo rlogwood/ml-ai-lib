@@ -219,7 +219,7 @@ def plot_roc_curve(y_true, y_pred_proba, figsize=(10, 8)):
     ax.set_xlim([0.0, 1.0])
     ax.set_ylim([0.0, 1.05])
     ax.set_xlabel('False Positive Rate', fontsize=12)
-    ax.set_ylabel('True Positive Rate', fontsize=12)
+    ax.set_ylabel('True Positive Rate (Recall)', fontsize=12)
     ax.set_title('Receiver Operating Characteristic (ROC) Curve',
                 fontsize=14, fontweight='bold')
     ax.legend(loc="lower right", fontsize=11)
@@ -227,7 +227,7 @@ def plot_roc_curve(y_true, y_pred_proba, figsize=(10, 8)):
 
     plt.tight_layout()
 
-    print(f"\nAUC-ROC Score: {roc_auc:.4f}")
+    print(tu.bold_text(f"\nAUC-ROC Score: {roc_auc:.4f}"))
     if roc_auc >= 0.9:
         interpretation = "Excellent discrimination ability"
     elif roc_auc >= 0.8:
@@ -236,12 +236,12 @@ def plot_roc_curve(y_true, y_pred_proba, figsize=(10, 8)):
         interpretation = "Fair discrimination ability"
     else:
         interpretation = "Poor discrimination ability"
-    print(f"  Interpretation: {interpretation}")
+    print(tu.bold_text(f"  Interpretation: {interpretation}"))
 
     return fig, roc_auc
 
 
-def plot_precision_recall_curve(y_true, y_pred_proba, figsize=(10, 8)):
+def plot_precision_recall_curve(y_true, y_pred_proba, figsize=(10, 8), title=""):
     """
     Plot Precision-Recall curve.
 
@@ -269,6 +269,9 @@ def plot_precision_recall_curve(y_true, y_pred_proba, figsize=(10, 8)):
     precision, recall, thresholds = precision_recall_curve(y_true, y_pred_proba)
 
     fig, ax = plt.subplots(figsize=figsize)
+
+    if title:
+        ax.set_title(title, fontsize=14, fontweight='bold')
 
     ax.plot(recall, precision, color='blue', lw=2, label='Precision-Recall curve')
     ax.set_xlabel('Recall', fontsize=12)
