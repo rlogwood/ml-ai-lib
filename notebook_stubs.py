@@ -54,6 +54,7 @@ from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight
 from sklearn.ensemble import RandomForestClassifier
+from imblearn.over_sampling import SMOTE
 
 # Visualization
 import matplotlib.pyplot as plt
@@ -86,6 +87,6 @@ __all__ = [
     'confusion_matrix', 'classification_report', 'accuracy_score',
     'precision_score', 'recall_score', 'f1_score', 'roc_auc_score', 'roc_curve',
     'precision_recall_curve', 'LabelEncoder', 'StandardScaler', 'train_test_split', 'compute_class_weight',
-    'RandomForestClassifier', 'plt', 'sns', 'Image', 'display', 'HTML',
+    'RandomForestClassifier', 'SMOTE', 'plt', 'sns', 'Image', 'display', 'HTML',
     'tu', 'wr', 'dc', 'da', 'ca', 'utl', 'ddl', 'cib', 'fe', 'me', 'mt'
 ]

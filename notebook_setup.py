@@ -229,6 +229,7 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
         from sklearn.model_selection import train_test_split
         from sklearn.utils.class_weight import compute_class_weight
         from sklearn.ensemble import RandomForestClassifier
+        from imblearn.over_sampling import SMOTE
         modules_to_inject.update({
             'confusion_matrix': confusion_matrix,
             'classification_report': classification_report,
@@ -243,7 +244,8 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
             'StandardScaler': StandardScaler,
             'train_test_split': train_test_split,
             'compute_class_weight': compute_class_weight,
-            'RandomForestClassifier': RandomForestClassifier
+            'RandomForestClassifier': RandomForestClassifier,
+            'SMOTE': SMOTE
         })
 
     # Visualization (conditional)
