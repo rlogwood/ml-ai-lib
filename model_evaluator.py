@@ -26,8 +26,7 @@ try:
 except ImportError:
     import text_util as tu
 
-
-def plot_training_history(history, metrics=['loss', 'accuracy', 'precision', 'recall']):
+def plot_training_history(history, metrics=['loss', 'accuracy', 'precision', 'recall', 'auc']):
     """
     Visualize training history with multiple metrics.
 
@@ -50,7 +49,14 @@ def plot_training_history(history, metrics=['loss', 'accuracy', 'precision', 're
     """
     tu.print_heading("TRAINING HISTORY VISUALIZATION")
 
-    fig, axes = plt.subplots(2, 2, figsize=(16, 12))
+    #fig, axes = plt.subplots(3, 2, figsize=(16, 12))
+
+    n_metrics = len(metrics)
+    n_cols = 2
+    n_rows = (n_metrics + 1) // 2  # ceil division
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(16, 4 * n_rows))
+
     axes = axes.ravel()
 
     for idx, metric in enumerate(metrics):
@@ -71,12 +77,18 @@ def plot_training_history(history, metrics=['loss', 'accuracy', 'precision', 're
             axes[idx].grid(True, alpha=0.3)
 
     plt.tight_layout()
-    print("\n+ Training history visualized")
+    for idx in range(n_metrics, len(axes)):
+        fig.delaxes(axes[idx])  # actually remove, not just hide
 
+    #plt.tight_layout()
+    #for idx in range(len(metrics), len(axes)):
+    #    axes[idx].set_visible(False)
+
+    print("+ Training history visualized")
+    #plt.close(fig)
     return fig
 
-
-def plot_confusion_matrix(y_true, y_pred, labels=['Paid', 'Default'], figsize=(10, 8)):
+def plot_confusion_matrix(y_true, y_pred, labels=['Paid (0)', 'Default (1)'], figsize=(10, 8)):
     """
     Plot confusion matrix with detailed breakdown.
 
@@ -108,35 +120,47 @@ def plot_confusion_matrix(y_true, y_pred, labels=['Paid', 'Default'], figsize=(1
     print(tu.bold_and_colored_text("Confusion Matrix:", tu.Color.ORANGE))
     print(tu.bold_text(str(cm)))
 
-    print(tu.bold_and_colored_text("Breakdown:", tu.Color.ORANGE))
-    tn, fp, fn, tp = cm.ravel()
-    print(tu.bold_and_colored_text(f"  True Negatives (TN):  {tn:,} - Correctly predicted as {labels[0]}", tu.Color.GREEN))
-    print(tu.bold_and_colored_text(f"  False Positives (FP):   {fp:,} - Incorrectly predicted as {labels[1]}", tu.Color.RED))
-    print(tu.bold_and_colored_text(f"  False Negatives (FN):   {fn:,} - Incorrectly predicted as {labels[0]} (COSTLY!)", tu.Color.RED))
-    print(tu.bold_and_colored_text(f"  True Positives (TP):    {tp:,} - Correctly predicted as {labels[1]}", tu.Color.GREEN))
-
     # Plot
     fig, axes = plt.subplots(1, 2, figsize=figsize)
 
     # Heatmap with counts
     sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', ax=axes[0],
-                xticklabels=labels, yticklabels=labels, cbar=False)
+                xticklabels=labels, yticklabels=labels, #cbar=False,
+               cbar_kws={'label': 'Count'},
+               annot_kws={'size': 16, 'weight': 'bold'})
+
     axes[0].set_title('Confusion Matrix (Counts)', fontsize=14, fontweight='bold')
-    axes[0].set_ylabel('True Label', fontsize=12)
-    axes[0].set_xlabel('Predicted Label', fontsize=12)
+    axes[0].set_ylabel('Actual', fontsize=14, fontweight='bold')
+    axes[0].set_xlabel('Predicted', fontsize=14, fontweight='bold')
 
     # Normalized heatmap
     cm_norm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
     sns.heatmap(cm_norm, annot=True, fmt='.2%', cmap='Blues', ax=axes[1],
-                xticklabels=labels, yticklabels=labels, cbar=False)
+                xticklabels=labels, yticklabels=labels, #cbar=False)
+               cbar_kws={'label': 'Percentage'},
+               annot_kws={'size': 16, 'weight': 'bold'})
+
     axes[1].set_title('Confusion Matrix (Normalized)', fontsize=14, fontweight='bold')
-    axes[1].set_ylabel('True Label', fontsize=12)
-    axes[1].set_xlabel('Predicted Label', fontsize=12)
+    axes[1].set_ylabel('Actual', fontsize=14, fontweight='bold')
+    axes[1].set_xlabel('Predicted', fontsize=14, fontweight='bold')
 
     plt.tight_layout()
 
-    return fig
 
+    print(tu.bold_and_colored_text("Breakdown:", tu.Color.ORANGE))
+    tn, fp, fn, tp = cm.ravel()
+    cm_norm *= 100
+    print(tu.bold_and_colored_text(
+        f"  True Negatives (TN):  {tn:>5,} ({cm_norm[0, 0]:.1f}%) - Correctly predicted as {labels[0]}", tu.Color.GREEN))
+    print(tu.bold_and_colored_text(
+        f"  False Positives (FP): {fp:>5,} ({cm_norm[0, 1]:.1f}%) - Incorrectly predicted as {labels[1]}", tu.Color.RED))
+    print(tu.bold_and_colored_text(
+        f"  False Negatives (FN): {fn:>5,} ({cm_norm[1, 0]:.1f}%) - Incorrectly predicted as {labels[0]} (COSTLY!)",
+        tu.Color.RED))
+    print(tu.bold_and_colored_text(
+        f"  True Positives (TP):  {tp:>5,} ({cm_norm[1, 1]:.1f}%) - Correctly predicted as {labels[1]}", tu.Color.GREEN))
+
+    return fig
 
 def print_classification_metrics(y_true, y_pred, y_pred_proba=None, labels=['Paid (0)', 'Default (1)']):
     """
@@ -331,9 +355,10 @@ def optimize_threshold(y_true, y_pred_proba, thresholds_to_test=[0.3, 0.4, 0.5, 
     """
     if verbose:
         tu.print_heading("THRESHOLD OPTIMIZATION")
-        print("\nTesting different classification thresholds:\n")
-        print(f"{'Threshold':<12} {'Accuracy':<12} {'Precision':<12} {'Recall':<12} {'F1-Score':<12}")
+        print(tu.italic_text("Testing different classification thresholds:"))
         print("=" * 60)
+        print(tu.bold_text(f"{'Threshold':<12} {'Accuracy':<12} {'Precision':<12} {'Recall':<12} {'F1-Score':<12}"))
+        #print("=" * 60)
 
     results = []
 
@@ -363,17 +388,17 @@ def optimize_threshold(y_true, y_pred_proba, thresholds_to_test=[0.3, 0.4, 0.5, 
     best_result = results_df.iloc[best_idx].to_dict()
 
     if verbose:
-        print("\n" + "=" * 60)
-        print(f"Best Threshold (by {metric.upper()}): {best_result['threshold']}")
+        print("-" * 60)
+        print(tu.bold_text(f"Best Threshold (by {metric.upper()}): {best_result['threshold']}"))
         print(f"  F1-Score: {best_result['f1']:.4f}")
         print(f"  Precision: {best_result['precision']:.4f}")
         print(f"  Recall: {best_result['recall']:.4f}")
-        print("\n" + "=" * 60 + "\n")
+        print("=" * 60 + "\n")
 
     return best_result, results_df
 
 
-def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'Default']):
+def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'Default'], usr_title=None):
     """
     Perform comprehensive model evaluation with all visualizations.
 
@@ -409,6 +434,9 @@ def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'De
     # Generate all evaluations
     results = {}
 
+    results['y_pred'] = y_pred
+    results['y_pred_proba'] = y_pred_proba
+
     # 1. Confusion Matrix
     results['cm_fig'] = plot_confusion_matrix(y_test, y_pred, labels=class_names)
 
@@ -420,7 +448,8 @@ def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'De
     results['roc_fig'], results['auc'] = plot_roc_curve(y_test, y_pred_proba)
 
     # 4. Precision-Recall Curve
-    results['pr_fig'] = plot_precision_recall_curve(y_test, y_pred_proba)
+    # TODO: check y_test, passed twice
+    results['pr_fig'] = plot_precision_recall_curve(y_test, y_pred_proba, y_test, usr_title=usr_title)
 
     # 5. Threshold Optimization
     results['best_threshold'], results['threshold_df'] = optimize_threshold(y_test, y_pred_proba)

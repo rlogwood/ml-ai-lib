@@ -13,8 +13,7 @@ try:
 except ImportError:
     import text_util as tu
 
-
-def calculate_class_weights(y_train):
+def calculate_class_weights(y_train, class_names=None):
     """
     Calculate balanced class weights for imbalanced datasets.
 
@@ -22,6 +21,9 @@ def calculate_class_weights(y_train):
     -----------
     y_train : array-like
         Training labels
+    class_names : dict, optional
+        Dictionary mapping class labels to names (e.g., {0: 'Paid', 1: 'Default'})
+        If None, defaults to {0: 'Paid', 1: 'Default'}
 
     Returns:
     --------
@@ -34,8 +36,37 @@ def calculate_class_weights(y_train):
     ---------
     >>> class_weight_dict, class_weights = calculate_class_weights(y_train)
     >>> print(f"Class 0 weight: {class_weight_dict[0]:.4f}")
+
+    Insight:
+    --------
+    2 classes is typical because:
+    - Most classification problems are binary (yes/no, fraud/legitimate, default/paid, sick/healthy)
+
+    The special handling for 2 classes provides a more intuitive interpretation with
+    the ratio and the sentence explaining penalty differences
+
+    More than 2 classes occurs in multi-class classification:
+    - Credit ratings: AAA, AA, A, BBB, BB, B, CCC (7 classes)
+    - Loan risk tiers: Low, Medium, High, Very High (4 classes)
+    - Customer segments: Bronze, Silver, Gold, Platinum (4 classes)
+    - Image classification: cat, dog, bird, fish, etc.
+    - Sentiment analysis: Very Negative, Negative, Neutral, Positive, Very Positive (5 classes)
+    - Medical diagnosis: Multiple disease types or severity levels
+
+    Why the code handles both: The compute_class_weight function from sklearn works
+    with any number of classes, so the function naturally supports multi-class scenarios.
+    The special 2-class formatting just makes the output clearer for the most common case -
+    showing a simple ratio and readable interpretation instead of just listing all weights.
+    In your loan default prediction case, you're doing binary classification (paid vs default),
+    so you'd typically stay with 2 classes. But if you later wanted to predict something like
+    paid on time / paid late / defaulted" (3 classes), the function would handle it automatically.
     """
+
     tu.print_heading("CLASS WEIGHT CALCULATION")
+
+    # Set default class names if not provided
+    if class_names is None:
+        class_names = {0: 'Paid', 1: 'Default'}
 
     # Calculate class weights
     classes = np.unique(y_train)
@@ -49,15 +80,25 @@ def calculate_class_weights(y_train):
     class_weight_dict = dict(zip(classes, class_weights))
 
     print("\nCalculated Class Weights:")
-    print(f"  Class 0 (Paid):    {class_weights[0]:.4f}")
-    print(f"  Class 1 (Default): {class_weights[1]:.4f}")
-    print(f"\n  Weight Ratio (1/0): {class_weights[1]/class_weights[0]:.2f}x")
+    for cls, weight in class_weight_dict.items():
+        class_name = class_names.get(cls, f'Class {cls}')
+        print(f"  Class {cls} ({class_name}): {weight:.4f}")
 
-    print("\n  Interpretation: The model will penalize misclassifying")
-    print(f"  a default {class_weights[1]/class_weights[0]:.2f}x more than misclassifying a paid loan.")
+    # Calculate and display weight ratios for all pairs (if more than 2 classes)
+    if len(classes) == 2:
+        ratio = class_weights[1] / class_weights[0]
+        name_0 = class_names.get(classes[0], f'Class {classes[0]}')
+        name_1 = class_names.get(classes[1], f'Class {classes[1]}')
+        print(f"\n  Weight Ratio ({classes[1]}/{classes[0]}): {ratio:.2f}x")
+        print("\n  Interpretation: The model will penalize misclassifying")
+        print(f"  a {name_1.lower()} {ratio:.2f}x more than misclassifying a {name_0.lower()}.")
+    else:
+        print("\n  Weight Ratios:")
+        for i, cls in enumerate(classes):
+            name = class_names.get(cls, f'Class {cls}')
+            print(f"    {name}: {class_weights[i]:.4f}")
 
     return class_weight_dict, class_weights
-
 
 def build_neural_network(input_dim, layers=[32, 16], dropout_rate=0.3, learning_rate=0.001):
     """
