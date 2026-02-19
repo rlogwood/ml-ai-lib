@@ -270,7 +270,7 @@ def plot_roc_curve(y_true, y_pred_proba, figsize=(10, 8), usr_title=None):
     return fig, roc_auc
 
 
-def plot_precision_recall_curve(y_true, y_pred_proba, y_test, figsize=(10, 8), usr_title=None):
+def plot_precision_recall_curve(y_true, y_pred_proba, figsize=(10, 8), usr_title=None):
     """
     Plot Precision-Recall curve.
 
@@ -290,7 +290,7 @@ def plot_precision_recall_curve(y_true, y_pred_proba, y_test, figsize=(10, 8), u
 
     Examples:
     ---------
-    >>> fig = plot_precision_recall_curve(y_test, y_pred_proba)
+    >>> fig = plot_precision_recall_curve(y_true, y_pred_proba)
     >>> plt.show()
     """
     tu.print_heading("PRECISION-RECALL CURVE")
@@ -301,8 +301,8 @@ def plot_precision_recall_curve(y_true, y_pred_proba, y_test, figsize=(10, 8), u
 
     ax.plot(recall, precision, color='blue', lw=2, label='Precision-Recall curve')
 
-    plt.axhline(y=y_test.sum() / len(y_test), color='red', linestyle='--', linewidth=2,
-                label=f'Baseline (No Skill) = {y_test.sum() / len(y_test):.4f}')
+    plt.axhline(y=y_true.sum() / len(y_true), color='red', linestyle='--', linewidth=2,
+                label=f'Baseline (No Skill) = {y_true.sum() / len(y_true):.4f}')
 
     ax.set_xlabel('Recall (Sensitivity)', fontsize=14, fontweight='bold')
     ax.set_ylabel('Precision', fontsize=14, fontweight='bold')
@@ -448,8 +448,7 @@ def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'De
     results['roc_fig'], results['auc'] = plot_roc_curve(y_test, y_pred_proba)
 
     # 4. Precision-Recall Curve
-    # TODO: check y_test, passed twice
-    results['pr_fig'] = plot_precision_recall_curve(y_test, y_pred_proba, y_test, usr_title=usr_title)
+    results['pr_fig'] = plot_precision_recall_curve(y_test, y_pred_proba, usr_title=usr_title)
 
     # 5. Threshold Optimization
     results['best_threshold'], results['threshold_df'] = optimize_threshold(y_test, y_pred_proba)
