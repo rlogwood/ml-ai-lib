@@ -26,6 +26,46 @@ try:
 except ImportError:
     import text_util as tu
 
+def plot_class_distribution_analysis(df, target_col, labels=None):
+    # 1. CLASS IMBALANCE ANALYSIS (CRITICAL)
+    tu.print_heading("CLASS DISTRIBUTION ANALYSIS")
+
+    labels = labels or ['Paid (0)', 'Default (1)']
+    class_counts = df[target_col].value_counts()
+    class_percentages = df[target_col].value_counts(normalize=True) * 100
+
+    print("\nAbsolute Counts:")
+    print(f"  Paid (0):     {class_counts[0]:,} loans ({class_percentages[0]:.2f}%)")
+    print(f"  Default (1):  {class_counts[1]:,} loans ({class_percentages[1]:.2f}%)")
+    paid_debt_ratio=class_counts[0]/class_counts[1]
+    imbalanced=paid_debt_ratio>1
+    print(tu.bold_and_colored_text(f"Ratio: {paid_debt_ratio:.2f}","red"))
+    print("   This significant imbalance requires special handling!")
+
+    # Visualization
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Bar plot
+    #axes[0].bar(['Paid (0)', 'Default (1)'], class_counts.values,
+    axes[0].bar(labels, class_counts.values,
+                color=['#2ecc71', '#e74c3c'], alpha=0.7, edgecolor='black')
+    axes[0].set_ylabel('Number of Loans', fontsize=12, fontweight='bold')
+    axes[0].set_title('Class Distribution (Absolute)', fontsize=14, fontweight='bold', pad=15)
+    axes[0].grid(axis='y', alpha=0.3)
+    for i, v in enumerate(class_counts.values):
+        axes[0].text(i, v + 100, f'{v:,}\n({class_percentages.values[i]:.1f}%)',
+                    ha='center', fontweight='bold')
+
+    # Pie chart
+    #axes[1].pie(class_counts.values, labels=['Paid (0)', 'Default (1)'],
+    axes[1].pie(class_counts.values, labels=labels,
+               autopct='%1.1f%%', colors=['#2ecc71', '#e74c3c'],
+               startangle=90, explode=(0, 0.1))
+    axes[1].set_title('Class Distribution (Percentage)', fontsize=14, fontweight='bold')
+
+    plt.tight_layout()
+    plt.show()
+
 def plot_training_history(history, metrics=['loss', 'accuracy', 'precision', 'recall', 'auc']):
     """
     Visualize training history with multiple metrics.
@@ -204,7 +244,6 @@ def print_classification_metrics(y_true, y_pred, y_pred_proba=None, labels=['Pai
         auc_score = roc_auc_score(y_true, y_pred_proba)
         print(f"  AUC-ROC:              {auc_score:.4f}")
 
-
 def plot_roc_curve(y_true, y_pred_proba, figsize=(10, 8), usr_title=None):
     """
     Plot ROC curve with AUC score.
@@ -269,7 +308,6 @@ def plot_roc_curve(y_true, y_pred_proba, figsize=(10, 8), usr_title=None):
 
     return fig, roc_auc
 
-
 def plot_precision_recall_curve(y_true, y_pred_proba, figsize=(10, 8), usr_title=None):
     """
     Plot Precision-Recall curve.
@@ -321,7 +359,6 @@ def plot_precision_recall_curve(y_true, y_pred_proba, figsize=(10, 8), usr_title
     print("\n+ Precision-Recall curve plotted")
 
     return fig
-
 
 def optimize_threshold(y_true, y_pred_proba, thresholds_to_test=[0.3, 0.4, 0.5, 0.6, 0.7],
                        metric='f1', verbose=True):
@@ -397,7 +434,6 @@ def optimize_threshold(y_true, y_pred_proba, thresholds_to_test=[0.3, 0.4, 0.5, 
 
     return best_result, results_df
 
-
 def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'Default'], usr_title=None):
     """
     Perform comprehensive model evaluation with all visualizations.
@@ -454,7 +490,6 @@ def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'De
     results['best_threshold'], results['threshold_df'] = optimize_threshold(y_test, y_pred_proba)
 
     return results
-
 
 if __name__ == "__main__":
     # Example usage

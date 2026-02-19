@@ -176,7 +176,6 @@ def build_neural_network(input_dim, layers=[32, 16], dropout_rate=0.3, learning_
 
     return model
 
-
 def create_early_stopping(patience=5, monitor='val_auc', mode='max', verbose=1):
     """
     Create early stopping callback for training.
@@ -211,7 +210,6 @@ def create_early_stopping(patience=5, monitor='val_auc', mode='max', verbose=1):
         mode=mode,
         verbose=verbose
     )
-
 
 def train_model_with_class_weights(
     model,
