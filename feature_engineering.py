@@ -147,6 +147,177 @@ def validate_features_for_engineering(df):
     return len(missing) == 0, missing
 
 
+def prepare_data_for_training(df, target_col, categorical_cols=None,
+                              test_size=0.3, val_size=0.2,
+                              scale_features=True, random_state=42,
+                              stratify=True, verbose=True):
+    """
+    Prepare data for machine learning by encoding, splitting, and scaling.
+
+    This function performs the complete preprocessing pipeline:
+    1. One-hot encode categorical variables
+    2. Separate features and target
+    3. Split into train/validation/test sets
+    4. Scale features (optional)
+
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        Input dataframe
+    target_col : str
+        Name of the target column
+    categorical_cols : list, optional
+        List of categorical column names to encode. If None, auto-detects object/category dtypes.
+    test_size : float, default=0.3
+        Proportion of data for test set (0.0 to 1.0)
+    val_size : float, default=0.2
+        Proportion of training data for validation set (0.0 to 1.0)
+    scale_features : bool, default=True
+        Whether to apply StandardScaler to features
+    random_state : int, default=42
+        Random seed for reproducibility
+    stratify : bool, default=True
+        Whether to maintain class balance in splits (for classification)
+    verbose : bool, default=True
+        Whether to print progress messages
+
+    Returns:
+    --------
+    dict
+        Dictionary containing:
+        - 'X_train': Training features (scaled if scale_features=True)
+        - 'X_val': Validation features (scaled if scale_features=True)
+        - 'X_test': Test features (scaled if scale_features=True)
+        - 'y_train': Training target
+        - 'y_val': Validation target
+        - 'y_test': Test target
+        - 'scaler': StandardScaler object (if scale_features=True, else None)
+        - 'encoded_df': DataFrame after encoding (before split)
+        - 'feature_names': List of feature column names
+
+    Examples:
+    ---------
+    >>> # Basic usage
+    >>> data = prepare_data_for_training(df, target_col='not.fully.paid')
+    >>> X_train, y_train = data['X_train'], data['y_train']
+
+    >>> # Custom splits without scaling
+    >>> data = prepare_data_for_training(
+    ...     df,
+    ...     target_col='target',
+    ...     categorical_cols=['category1', 'category2'],
+    ...     test_size=0.2,
+    ...     val_size=0.15,
+    ...     scale_features=False
+    ... )
+    """
+    from sklearn.model_selection import train_test_split
+    from sklearn.preprocessing import StandardScaler
+
+    if verbose:
+        tu.print_heading("DATA PREPROCESSING")
+
+    df_work = df.copy()
+
+    # 1. Encode categorical variables
+    if categorical_cols is None:
+        categorical_cols = df_work.select_dtypes(include=['object', 'category']).columns.tolist()
+        # Remove target if it's in categorical columns
+        if target_col in categorical_cols:
+            categorical_cols.remove(target_col)
+
+    if verbose and categorical_cols:
+        print(f"\n1. Encoding categorical variable(s): {categorical_cols}...")
+
+    if categorical_cols:
+        df_encoded = pd.get_dummies(df_work, columns=categorical_cols, drop_first=True, dtype=int)
+        if verbose:
+            print(f"   ✓ Original features: {df_work.shape[1]}")
+            print(f"   ✓ After encoding: {df_encoded.shape[1]}")
+    else:
+        df_encoded = df_work
+        if verbose:
+            print("\n1. No categorical variables to encode")
+
+    # 2. Separate features and target
+    if verbose:
+        print("\n2. Separating features and target...")
+
+    if target_col not in df_encoded.columns:
+        raise ValueError(f"Target column '{target_col}' not found in dataframe")
+
+    X = df_encoded.drop(target_col, axis=1)
+    y = df_encoded[target_col]
+
+    if verbose:
+        print(f"   ✓ Features shape: {X.shape}")
+        print(f"   ✓ Target shape: {y.shape}")
+
+    # 3. Train-test split
+    if verbose:
+        print(f"\n3. Splitting into train ({(1-test_size)*100:.0f}%) and test ({test_size*100:.0f}%) sets...")
+
+    stratify_y = y if stratify else None
+    X_temp, X_test, y_temp, y_test = train_test_split(
+        X, y, test_size=test_size, random_state=random_state, stratify=stratify_y
+    )
+
+    # 4. Train-validation split
+    if val_size > 0:
+        if verbose:
+            print(f"4. Further split training data into train ({(1-val_size)*100:.0f}%) and validation ({val_size*100:.0f}%) sets...")
+
+        stratify_y_temp = y_temp if stratify else None
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_temp, y_temp, test_size=val_size, random_state=random_state, stratify=stratify_y_temp
+        )
+    else:
+        X_train, y_train = X_temp, y_temp
+        X_val, y_val = None, None
+
+    if verbose:
+        print(f"   ✓ Training set: {X_train.shape[0]:,} samples")
+        if X_val is not None:
+            print(f"   ✓ Validation set: {X_val.shape[0]:,} samples")
+        print(f"   ✓ Test set: {X_test.shape[0]:,} samples")
+
+        # Show class distribution
+        print("\n   Class distribution in training set:")
+        train_dist = y_train.value_counts(normalize=True) * 100
+        for class_label in sorted(train_dist.index):
+            print(f"     Class {class_label}: {train_dist[class_label]:.2f}%")
+
+    # 5. Feature scaling
+    scaler = None
+    if scale_features:
+        if verbose:
+            print(f"\n5. Scaling features (StandardScaler)...")
+
+        scaler = StandardScaler()
+        X_train = scaler.fit_transform(X_train)
+        X_test = scaler.transform(X_test)
+        if X_val is not None:
+            X_val = scaler.transform(X_val)
+
+        if verbose:
+            print(f"   ✓ Features scaled to mean=0, std=1")
+
+    # Return results
+    result = {
+        'X_train': X_train,
+        'X_val': X_val,
+        'X_test': X_test,
+        'y_train': y_train,
+        'y_val': y_val,
+        'y_test': y_test,
+        'scaler': scaler,
+        'encoded_df': df_encoded,
+        'feature_names': X.columns.tolist()
+    }
+
+    return result
+
+
 if __name__ == "__main__":
     # Example usage
     print("Feature Engineering Module")
@@ -156,3 +327,4 @@ if __name__ == "__main__":
     print("  - create_loan_features(df)")
     print("  - get_engineered_feature_names()")
     print("  - validate_features_for_engineering(df)")
+    print("  - prepare_data_for_training(df, target_col, ...)")
