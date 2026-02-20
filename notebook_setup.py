@@ -278,6 +278,7 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
     import lib.model_evaluator as me
     import lib.model_trainer as mt
     import lib.loan_analysis as la
+    import lib.visualization_helpers as vi
 
     modules_to_inject.update({
         'tu': tu,
@@ -291,7 +292,8 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
         'fe': fe,
         'me': me,
         'mt': mt,
-        'la': la
+        'la': la,
+        'vi': vi
     })
 
     # Reload modules after code changes

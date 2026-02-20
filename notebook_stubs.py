@@ -75,6 +75,7 @@ import lib.feature_engineering as fe
 import lib.model_evaluator as me
 import lib.model_trainer as mt
 import lib.loan_analysis as la
+import lib.visualization_helpers as vi
 
 # Export all for 'from notebook_stubs import *'
 __all__ = [
@@ -89,5 +90,5 @@ __all__ = [
     'precision_score', 'recall_score', 'f1_score', 'roc_auc_score', 'roc_curve',
     'precision_recall_curve', 'LabelEncoder', 'StandardScaler', 'train_test_split', 'compute_class_weight',
     'RandomForestClassifier', 'SMOTE', 'plt', 'sns', 'Image', 'display', 'HTML',
-    'tu', 'wr', 'dc', 'da', 'ca', 'utl', 'ddl', 'cib', 'fe', 'me', 'mt', 'la'
+    'tu', 'wr', 'dc', 'da', 'ca', 'utl', 'ddl', 'cib', 'fe', 'me', 'mt', 'la', 'vi'
 ]
