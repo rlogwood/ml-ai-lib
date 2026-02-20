@@ -295,6 +295,83 @@ def detect_outliers_iqr(df, column):
     }
 
 
+def analyze_outliers(df, method='iqr', iqr_multiplier=1.5, print_results=True,
+                     exclude_columns=None, include_columns=None):
+    """
+    Analyze outliers for all numeric columns in a DataFrame.
+
+    Parameters:
+    -----------
+    df : pd.DataFrame
+        Input dataframe
+    method : str, default='iqr'
+        Outlier detection method. Currently supports 'iqr' only.
+    iqr_multiplier : float, default=1.5
+        Multiplier for IQR method (1.5 = standard, 3.0 = extreme outliers)
+    print_results : bool, default=True
+        Whether to print formatted results
+    exclude_columns : list, optional
+        List of column names to exclude from analysis
+    include_columns : list, optional
+        List of specific column names to analyze (overrides exclude_columns)
+
+    Returns:
+    --------
+    dict
+        Dictionary mapping column names to outlier analysis results
+    """
+    import numpy as np
+
+    # Get numeric columns
+    if include_columns:
+        numeric_cols = [col for col in include_columns if col in df.columns
+                       and np.issubdtype(df[col].dtype, np.number)]
+    else:
+        numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+        if exclude_columns:
+            numeric_cols = [col for col in numeric_cols if col not in exclude_columns]
+
+    if print_results:
+        tu.print_heading("Outlier Analysis (IQR Method)")
+
+    results = {}
+    for col in numeric_cols:
+        # Calculate outliers based on method
+        if method == 'iqr':
+            Q1 = df[col].quantile(0.25)
+            Q3 = df[col].quantile(0.75)
+            IQR = Q3 - Q1
+
+            lower_bound = Q1 - iqr_multiplier * IQR
+            upper_bound = Q3 + iqr_multiplier * IQR
+
+            outliers = df[(df[col] < lower_bound) | (df[col] > upper_bound)]
+
+            result = {
+                'column': col,
+                'total_outliers': len(outliers),
+                'percentage': f"{(len(outliers) / len(df)) * 100:.1f}%",
+                'lower_bound': lower_bound,
+                'upper_bound': upper_bound,
+                'outlier_indices': outliers.index.tolist(),
+                'actual_min': df[col].min(),
+                'actual_max': df[col].max()
+            }
+        else:
+            raise ValueError(f"Unsupported method: {method}. Currently only 'iqr' is supported.")
+
+        results[col] = result
+
+        # Print results if requested
+        if print_results and result['total_outliers'] > 0:
+            tu.print_sub_heading(f"Outliers for column ({col}):")
+            print(f"  Outliers: {result['total_outliers']} ({result['percentage']})")
+            print(f"  Valid range: [{result['lower_bound']:.2f}, {result['upper_bound']:.2f}]")
+            print(f"  Actual range: [{result['actual_min']:.2f}, {result['actual_max']:.2f}]")
+
+    return results
+
+
 
 
 
