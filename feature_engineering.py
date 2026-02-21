@@ -5,6 +5,8 @@ This module provides functions for creating derived features from loan data
 to improve model performance.
 """
 
+from dataclasses import dataclass
+from typing import List, Optional
 import pandas as pd
 import numpy as np
 
@@ -12,6 +14,43 @@ try:
     from . import text_util as tu
 except ImportError:
     import text_util as tu
+
+
+@dataclass
+class PreparedData:
+    """
+    Container for preprocessed training data.
+
+    Attributes:
+    -----------
+    X_train : pd.DataFrame or np.ndarray
+        Training features (scaled if scale_features=True)
+    X_val : pd.DataFrame or np.ndarray or None
+        Validation features (scaled if scale_features=True)
+    X_test : pd.DataFrame or np.ndarray
+        Test features (scaled if scale_features=True)
+    y_train : pd.Series
+        Training target
+    y_val : pd.Series or None
+        Validation target
+    y_test : pd.Series
+        Test target
+    scaler : StandardScaler or None
+        StandardScaler object (if scale_features=True, else None)
+    encoded_df : pd.DataFrame
+        DataFrame after encoding (before split)
+    feature_names : List[str]
+        List of feature column names
+    """
+    X_train: pd.DataFrame
+    X_val: Optional[pd.DataFrame]
+    X_test: pd.DataFrame
+    y_train: pd.Series
+    y_val: Optional[pd.Series]
+    y_test: pd.Series
+    scaler: Optional[object]
+    encoded_df: pd.DataFrame
+    feature_names: List[str]
 
 
 def create_loan_features(df):
@@ -183,23 +222,23 @@ def prepare_data_for_training(df, target_col, categorical_cols=None,
 
     Returns:
     --------
-    dict
-        Dictionary containing:
-        - 'X_train': Training features (scaled if scale_features=True)
-        - 'X_val': Validation features (scaled if scale_features=True)
-        - 'X_test': Test features (scaled if scale_features=True)
-        - 'y_train': Training target
-        - 'y_val': Validation target
-        - 'y_test': Test target
-        - 'scaler': StandardScaler object (if scale_features=True, else None)
-        - 'encoded_df': DataFrame after encoding (before split)
-        - 'feature_names': List of feature column names
+    PreparedData
+        A dataclass containing:
+        - X_train: Training features (scaled if scale_features=True)
+        - X_val: Validation features (scaled if scale_features=True)
+        - X_test: Test features (scaled if scale_features=True)
+        - y_train: Training target
+        - y_val: Validation target
+        - y_test: Test target
+        - scaler: StandardScaler object (if scale_features=True, else None)
+        - encoded_df: DataFrame after encoding (before split)
+        - feature_names: List of feature column names
 
     Examples:
     ---------
     >>> # Basic usage
     >>> data = prepare_data_for_training(df, target_col='not.fully.paid')
-    >>> X_train, y_train = data['X_train'], data['y_train']
+    >>> X_train, y_train = data.X_train, data.y_train
 
     >>> # Custom splits without scaling
     >>> data = prepare_data_for_training(
@@ -302,20 +341,18 @@ def prepare_data_for_training(df, target_col, categorical_cols=None,
         if verbose:
             print(f"   ✓ Features scaled to mean=0, std=1")
 
-    # Return results
-    result = {
-        'X_train': X_train,
-        'X_val': X_val,
-        'X_test': X_test,
-        'y_train': y_train,
-        'y_val': y_val,
-        'y_test': y_test,
-        'scaler': scaler,
-        'encoded_df': df_encoded,
-        'feature_names': X.columns.tolist()
-    }
-
-    return result
+    # Return results as dataclass
+    return PreparedData(
+        X_train=X_train,
+        X_val=X_val,
+        X_test=X_test,
+        y_train=y_train,
+        y_val=y_val,
+        y_test=y_test,
+        scaler=scaler,
+        encoded_df=df_encoded,
+        feature_names=X.columns.tolist()
+    )
 
 
 if __name__ == "__main__":
