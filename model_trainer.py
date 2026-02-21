@@ -242,7 +242,7 @@ def train_model_with_class_weights(
     epochs=50,
     batch_size=256,
     callbacks=None,
-    verbose=1
+    model_verbosity=1
 ):
     """
     Train a neural network model with class weights.
@@ -291,7 +291,6 @@ def train_model_with_class_weights(
     if callbacks is None:
         callbacks = []
 
-    model_verbosity = 0
     history = model.fit(
         X_train,
         y_train,
