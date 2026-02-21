@@ -278,6 +278,7 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
     import lib.model_evaluator as me
     import lib.model_trainer as mt
     import lib.model_optimizer as mo
+    import lib.model_comparison as mc
     import lib.loan_analysis as la
     import lib.visualization as vi
 
@@ -294,6 +295,7 @@ def setup_notebook(show_versions=True, show_imports=False, config_file=None):
         'me': me,
         'mt': mt,
         'mo': mo,
+        'mc': mc,
         'la': la,
         'vi': vi
     })
