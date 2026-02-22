@@ -10,6 +10,7 @@ matplotlib.use('Agg')  # Use non-interactive backend for testing
 import matplotlib.pyplot as plt
 from unittest.mock import MagicMock
 import model_evaluator as me
+import model_optimizer as mo
 
 
 @pytest.fixture
@@ -197,7 +198,7 @@ class TestThresholdOptimization:
         best_result, results_df = me.optimize_threshold(
             y_true,
             y_pred_proba,
-            metric='precision',
+            metric=mo.OptimizationMetric.PRECISION,
             verbose=False
         )
 
@@ -212,7 +213,7 @@ class TestThresholdOptimization:
         best_result, results_df = me.optimize_threshold(
             y_true,
             y_pred_proba,
-            metric='recall',
+            metric=mo.OptimizationMetric.RECALL,
             verbose=False
         )
 

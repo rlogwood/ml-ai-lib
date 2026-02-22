@@ -166,6 +166,69 @@ def calculate_recall_weighted(roc_auc, recall, f1):
     return 0.3 * roc_auc + 0.6 * recall + 0.1 * f1
 
 
+def calculate_optimization_metric(metric_type, accuracy=None, precision=None, recall=None, f1=None, roc_auc=None):
+    """
+    Calculate optimization metric value based on OptimizationMetric type.
+
+    Parameters:
+    -----------
+    metric_type : OptimizationMetric
+        Type of metric to calculate (must be OptimizationMetric enum)
+    accuracy : float, optional
+        Accuracy score
+    precision : float, optional
+        Precision score
+    recall : float, optional
+        Recall score
+    f1 : float, optional
+        F1 score
+    roc_auc : float, optional
+        ROC AUC score
+
+    Returns:
+    --------
+    float
+        Calculated metric value
+
+    Raises:
+    -------
+    TypeError
+        If metric_type is not OptimizationMetric enum
+    ValueError
+        If required metric values are missing
+    """
+    if not isinstance(metric_type, OptimizationMetric):
+        raise TypeError(f"metric_type must be OptimizationMetric enum, got {type(metric_type).__name__}")
+
+    # Calculate based on metric type
+    if metric_type == OptimizationMetric.ACCURACY:
+        if accuracy is None:
+            raise ValueError("accuracy value is required for ACCURACY metric")
+        return accuracy
+    elif metric_type == OptimizationMetric.PRECISION:
+        if precision is None:
+            raise ValueError("precision value is required for PRECISION metric")
+        return precision
+    elif metric_type == OptimizationMetric.RECALL:
+        if recall is None:
+            raise ValueError("recall value is required for RECALL metric")
+        return recall
+    elif metric_type == OptimizationMetric.F1:
+        if f1 is None:
+            raise ValueError("f1 value is required for F1 metric")
+        return f1
+    elif metric_type == OptimizationMetric.ROC_AUC:
+        if roc_auc is None:
+            raise ValueError("roc_auc value is required for ROC_AUC metric")
+        return roc_auc
+    elif metric_type == OptimizationMetric.RECALL_WEIGHTED:
+        if roc_auc is None or recall is None or f1 is None:
+            raise ValueError("roc_auc, recall, and f1 values are required for RECALL_WEIGHTED metric")
+        return calculate_recall_weighted(roc_auc, recall, f1)
+    else:
+        raise ValueError(f"Unknown metric type: {metric_type}")
+
+
 def train_with_imbalance_handling(
         model,
         X_train,

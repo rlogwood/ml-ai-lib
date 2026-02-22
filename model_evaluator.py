@@ -24,9 +24,11 @@ from sklearn.metrics import (
 try:
     from . import text_util as tu
     from .utility import get_predictions
+    from .model_optimizer import OptimizationMetric, calculate_optimization_metric
 except ImportError:
     import text_util as tu
     from utility import get_predictions
+    from model_optimizer import OptimizationMetric, calculate_optimization_metric
 
 def plot_class_distribution_analysis(df, target_col, labels=None):
     # 1. CLASS IMBALANCE ANALYSIS (CRITICAL)
@@ -365,7 +367,7 @@ def plot_precision_recall_curve(y_true, y_pred_proba, figsize=(10, 8), usr_title
     return fig
 
 def optimize_threshold(y_true, y_pred_proba, thresholds_to_test=[0.3, 0.4, 0.5, 0.6, 0.7],
-                       metric='f1', verbose=True):
+                       metric=OptimizationMetric.F1, roc_auc=None, verbose=True):
     """
     Find optimal classification threshold by testing multiple values.
 
@@ -377,8 +379,10 @@ def optimize_threshold(y_true, y_pred_proba, thresholds_to_test=[0.3, 0.4, 0.5, 
         Predicted probabilities for positive class
     thresholds_to_test : list
         List of threshold values to test
-    metric : str
-        Metric to optimize ('f1', 'precision', 'recall', 'accuracy')
+    metric : OptimizationMetric
+        Metric to optimize (e.g., OptimizationMetric.F1, OptimizationMetric.RECALL_WEIGHTED)
+    roc_auc : float, optional
+        ROC AUC score (required for RECALL_WEIGHTED metric, as it doesn't change with threshold)
     verbose : bool
         Print results table
 
@@ -391,15 +395,25 @@ def optimize_threshold(y_true, y_pred_proba, thresholds_to_test=[0.3, 0.4, 0.5, 
 
     Examples:
     ---------
-    >>> best_result, results_df = optimize_threshold(y_test, y_pred_proba)
+    >>> best_result, results_df = optimize_threshold(y_test, y_pred_proba,
+    ...                                               metric=OptimizationMetric.F1)
     >>> print(f"Best threshold: {best_result['threshold']}")
+
+    >>> # Using recall_weighted
+    >>> best_result, results_df = optimize_threshold(y_test, y_pred_proba,
+    ...                                               metric=OptimizationMetric.RECALL_WEIGHTED,
+    ...                                               roc_auc=0.75)
     """
+    if not isinstance(metric, OptimizationMetric):
+        raise TypeError(f"metric must be OptimizationMetric enum, got {type(metric).__name__}")
+
+    metric_name = metric.value
+
     if verbose:
         tu.print_heading("THRESHOLD OPTIMIZATION")
         print(tu.italic_text("Testing different classification thresholds:"))
         print("=" * 60)
         print(tu.bold_text(f"{'Threshold':<12} {'Accuracy':<12} {'Precision':<12} {'Recall':<12} {'F1-Score':<12}"))
-        #print("=" * 60)
 
     results = []
 
@@ -411,12 +425,23 @@ def optimize_threshold(y_true, y_pred_proba, thresholds_to_test=[0.3, 0.4, 0.5, 
         rec = recall_score(y_true, y_pred_thresh, zero_division=0)
         f1 = f1_score(y_true, y_pred_thresh, zero_division=0)
 
+        # Calculate the optimization metric for this threshold
+        opt_metric_value = calculate_optimization_metric(
+            metric,
+            accuracy=acc,
+            precision=prec,
+            recall=rec,
+            f1=f1,
+            roc_auc=roc_auc
+        )
+
         results.append({
             'threshold': threshold,
             'accuracy': acc,
             'precision': prec,
             'recall': rec,
-            'f1': f1
+            'f1': f1,
+            'optimization_metric': opt_metric_value
         })
 
         if verbose:
@@ -424,21 +449,24 @@ def optimize_threshold(y_true, y_pred_proba, thresholds_to_test=[0.3, 0.4, 0.5, 
 
     results_df = pd.DataFrame(results)
 
-    # Find best threshold based on specified metric
-    best_idx = results_df[metric].idxmax()
+    # Find best threshold based on optimization metric
+    best_idx = results_df['optimization_metric'].idxmax()
     best_result = results_df.iloc[best_idx].to_dict()
 
     if verbose:
         print("-" * 60)
-        print(tu.bold_text(f"Best Threshold (by {metric.upper()}): {best_result['threshold']}"))
+        print(tu.bold_text(f"Best Threshold (by {metric_name.upper()}): {best_result['threshold']}"))
         print(f"  F1-Score: {best_result['f1']:.4f}")
         print(f"  Precision: {best_result['precision']:.4f}")
         print(f"  Recall: {best_result['recall']:.4f}")
+        if metric == OptimizationMetric.RECALL_WEIGHTED:
+            print(f"  Recall-Weighted Score: {best_result['optimization_metric']:.4f}")
         print("=" * 60 + "\n")
 
     return best_result, results_df
 
-def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'Default'], usr_title=None):
+def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'Default'],
+                                 usr_title=None, optimize_for=OptimizationMetric.F1):
     """
     Perform comprehensive model evaluation with all visualizations.
 
@@ -452,6 +480,11 @@ def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'De
         Test labels
     class_names : list
         Class label names
+    usr_title : str, optional
+        Custom title for plots
+    optimize_for : OptimizationMetric
+        Metric to optimize threshold for (default: OptimizationMetric.F1)
+        Options: OptimizationMetric.ACCURACY, PRECISION, RECALL, F1, ROC_AUC, RECALL_WEIGHTED
 
     Returns:
     --------
@@ -462,7 +495,13 @@ def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'De
     ---------
     >>> results = evaluate_model_comprehensive(model, X_test, y_test)
     >>> print(f"AUC: {results['auc']:.4f}")
+
+    >>> # Using recall_weighted optimization
+    >>> results = evaluate_model_comprehensive(model, X_test, y_test,
+    ...                                        optimize_for=OptimizationMetric.RECALL_WEIGHTED)
     """
+    if not isinstance(optimize_for, OptimizationMetric):
+        raise TypeError(f"optimize_for must be OptimizationMetric enum, got {type(optimize_for).__name__}")
     # Get predictions using shared utility
     y_pred, y_pred_proba = get_predictions(model, X_test, threshold=0.5, verbose=0)
 
@@ -486,7 +525,9 @@ def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'De
     results['pr_fig'] = plot_precision_recall_curve(y_test, y_pred_proba, usr_title=usr_title)
 
     # 5. Threshold Optimization
-    results['best_threshold'], results['threshold_df'] = optimize_threshold(y_test, y_pred_proba)
+    results['best_threshold'], results['threshold_df'] = optimize_threshold(
+        y_test, y_pred_proba, metric=optimize_for, roc_auc=results['auc']
+    )
 
     return results
 
