@@ -506,7 +506,7 @@ def optimize_threshold(y_true, y_pred_proba, thresholds_to_test=[0.3, 0.4, 0.5, 
     return best_result, results_df
 
 def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'Default'],
-                                 usr_title=None, optimize_for=OptimizationMetric.F1):
+                                 usr_title=None, optimize_for=OptimizationMetric.F1) -> ModelEvaluationResult:
     """
     Perform comprehensive model evaluation with all visualizations.
 
