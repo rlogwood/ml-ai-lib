@@ -135,6 +135,32 @@ class OptimizationComparison:
         return self.results[self.best_strategy].model
 
 
+def calculate_recall_weighted(roc_auc, recall, f1):
+    """
+    Calculate weighted recall score.
+
+    Formula: 0.3*roc_auc + 0.6*recall + 0.1*f1
+
+    This metric emphasizes recall (60%) while considering AUC (30%) and F1 (10%),
+    useful for scenarios where catching positive cases is critical.
+
+    Parameters:
+    -----------
+    roc_auc : float
+        ROC AUC score
+    recall : float
+        Recall score
+    f1 : float
+        F1 score
+
+    Returns:
+    --------
+    float
+        Weighted recall score
+    """
+    return 0.3 * roc_auc + 0.6 * recall + 0.1 * f1
+
+
 def train_with_imbalance_handling(
         model,
         X_train,
@@ -474,7 +500,17 @@ def optimize_imbalance_strategy(
         results[strategy_key] = result
 
         if verbose:
-            print(f"   ✓ {optimize_for_str}: {result.val_metrics[optimize_for_str]:.4f}")
+            # Calculate and display the metric value
+            if optimize_for_str == 'recall_weighted':
+                # Calculate weighted score using helper function
+                weighted_score = calculate_recall_weighted(
+                    result.val_metrics['roc_auc'],
+                    result.val_metrics['recall'],
+                    result.val_metrics['f1']
+                )
+                print(f"   ✓ {optimize_for_str}: {weighted_score:.4f}")
+            else:
+                print(f"   ✓ {optimize_for_str}: {result.val_metrics[optimize_for_str]:.4f}")
 
     # Create comparison DataFrame
     comparison_data = []
@@ -491,11 +527,14 @@ def optimize_imbalance_strategy(
 
     # Handle recall_weighted as a special case
     if optimize_for_str == 'recall_weighted':
-        # Calculate weighted score: 0.3*roc_auc + 0.6*recall + 0.1*f1
-        comparison_df['recall_weighted'] = (
-            0.3 * comparison_df['roc_auc'] +
-            0.6 * comparison_df['recall'] +
-            0.1 * comparison_df['f1']
+        # Calculate weighted score using helper function
+        comparison_df['recall_weighted'] = comparison_df.apply(
+            lambda row: calculate_recall_weighted(
+                row['roc_auc'],
+                row['recall'],
+                row['f1']
+            ),
+            axis=1
         )
 
     comparison_df = comparison_df.sort_values(by=optimize_for_str, ascending=False)
