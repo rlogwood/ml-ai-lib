@@ -275,9 +275,10 @@ def train_with_imbalance_handling(
             weights, epochs=epochs, callbacks=callbacks, model_verbosity=model_verbosity
         )
     else:
+        # Custom train function - don't pass model_verbosity (may not be supported)
         history = train_fn(
             model, X_train_final, y_train_final, X_val, y_val,
-            weights, epochs, callbacks, model_verbosity=model_verbosity
+            weights, epochs, callbacks
         )
 
     # Calculate validation metrics
