@@ -14,6 +14,11 @@ from sklearn.metrics import (
 from sklearn.utils.class_weight import compute_class_weight
 from imblearn.over_sampling import SMOTE
 
+try:
+    from lib.utility import get_predictions
+except ImportError:
+    from utility import get_predictions
+
 
 class ImbalanceStrategy(Enum):
     """
@@ -309,28 +314,8 @@ def train_with_imbalance_handling(
             weights, epochs, callbacks
         )
 
-    # Calculate validation metrics
-    # Handle both Keras models (accept verbose) and sklearn models (don't accept verbose)
-    try:
-        y_val_pred_raw = model.predict(X_val, verbose=0)
-    except TypeError:
-        # sklearn models don't accept verbose parameter
-        y_val_pred_raw = model.predict(X_val)
-
-    # Handle prediction format differences between Keras and sklearn
-    # Check if this is a real sklearn model (not a mock) by checking for sklearn's base class
-    is_sklearn_model = (hasattr(model, 'predict_proba') and
-                       hasattr(model, '_estimator_type') and
-                       model._estimator_type == 'classifier')
-
-    if is_sklearn_model:
-        # sklearn classifier - use predict_proba for probabilities
-        y_val_pred = model.predict(X_val)
-        y_val_pred_proba = model.predict_proba(X_val)[:, 1]  # probability of positive class
-    else:
-        # Keras model or Mock - predictions are already probabilities
-        y_val_pred = (y_val_pred_raw > 0.5).astype(int).flatten()
-        y_val_pred_proba = y_val_pred_raw.flatten()
+    # Calculate validation metrics using shared prediction utility
+    y_val_pred, y_val_pred_proba = get_predictions(model, X_val, threshold=0.5, verbose=model_verbosity)
 
     val_metrics = {
         'accuracy': accuracy_score(y_val, y_val_pred),

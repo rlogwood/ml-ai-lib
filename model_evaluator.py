@@ -23,8 +23,10 @@ from sklearn.metrics import (
 
 try:
     from . import text_util as tu
+    from .utility import get_predictions
 except ImportError:
     import text_util as tu
+    from utility import get_predictions
 
 def plot_class_distribution_analysis(df, target_col, labels=None):
     # 1. CLASS IMBALANCE ANALYSIS (CRITICAL)
@@ -461,13 +463,8 @@ def evaluate_model_comprehensive(model, X_test, y_test, class_names=['Paid', 'De
     >>> results = evaluate_model_comprehensive(model, X_test, y_test)
     >>> print(f"AUC: {results['auc']:.4f}")
     """
-    # Get predictions
-    if hasattr(model, 'predict_proba'):
-        y_pred_proba = model.predict_proba(X_test)[:, 1]
-    else:
-        y_pred_proba = model.predict(X_test).flatten()
-
-    y_pred = (y_pred_proba >= 0.5).astype(int)
+    # Get predictions using shared utility
+    y_pred, y_pred_proba = get_predictions(model, X_test, threshold=0.5, verbose=0)
 
     # Generate all evaluations
     results = {}

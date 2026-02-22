@@ -76,3 +76,64 @@ def show_env():
             print(f"\033[1m{key:<35}\033[0m = {value}")
 
     print("=" * 100 + "\n")
+
+
+def get_predictions(model, X, threshold=0.5, verbose=0):
+    """
+    Get class predictions and probabilities from any model type.
+
+    This function works with both sklearn-style classifiers (with predict_proba)
+    and Keras/TensorFlow models (where predict returns probabilities).
+
+    Parameters:
+    -----------
+    model : object
+        Trained classifier model (sklearn or Keras)
+    X : array-like
+        Input features for prediction
+    threshold : float, default=0.5
+        Probability threshold for binary classification
+    verbose : int, default=0
+        Verbosity level for Keras models (0=silent, 1=progress bar)
+
+    Returns:
+    --------
+    y_pred : ndarray
+        Binary class predictions (0 or 1)
+    y_pred_proba : ndarray
+        Probability of positive class (1D array)
+
+    Examples:
+    ---------
+    >>> from sklearn.ensemble import RandomForestClassifier
+    >>> model = RandomForestClassifier().fit(X_train, y_train)
+    >>> y_pred, y_proba = get_predictions(model, X_test)
+
+    >>> from tensorflow import keras
+    >>> model = keras.Sequential([...])
+    >>> model.fit(X_train, y_train)
+    >>> y_pred, y_proba = get_predictions(model, X_test, verbose=0)
+    """
+    if hasattr(model, 'predict_proba'):
+        # sklearn-style model with probability support
+        try:
+            y_pred_proba = model.predict_proba(X)[:, 1]
+        except (TypeError, IndexError):
+            # Mock object or non-standard predict_proba - fall back to predict
+            try:
+                y_pred_proba = model.predict(X, verbose=verbose).flatten()
+            except TypeError:
+                y_pred_proba = model.predict(X).flatten()
+    else:
+        # Keras/TensorFlow model - predict returns probabilities
+        try:
+            # Try with verbose parameter (Keras models)
+            y_pred_proba = model.predict(X, verbose=verbose).flatten()
+        except TypeError:
+            # Fall back without verbose (sklearn or other models)
+            y_pred_proba = model.predict(X).flatten()
+
+    # Apply threshold to get binary predictions
+    y_pred = (y_pred_proba >= threshold).astype(int)
+
+    return y_pred, y_pred_proba
