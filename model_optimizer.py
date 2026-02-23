@@ -69,6 +69,45 @@ class OptimizationMetric(Enum):
 
 
 @dataclass
+class ValidationMetrics:
+    """
+    Validation metrics for model evaluation.
+
+    Attributes:
+    -----------
+    accuracy : float
+        Classification accuracy
+    precision : float
+        Precision score
+    recall : float
+        Recall score
+    f1 : float
+        F1 score (harmonic mean of precision and recall)
+    roc_auc : float
+        Area under the ROC curve
+    """
+    accuracy: float
+    precision: float
+    recall: float
+    f1: float
+    roc_auc: float
+
+    def to_dict(self) -> Dict[str, float]:
+        """Convert to dictionary for backwards compatibility"""
+        return {
+            'accuracy': self.accuracy,
+            'precision': self.precision,
+            'recall': self.recall,
+            'f1': self.f1,
+            'roc_auc': self.roc_auc
+        }
+
+    def __getitem__(self, key: str) -> float:
+        """Allow dict-style access for backwards compatibility"""
+        return getattr(self, key)
+
+
+@dataclass
 class ImbalanceTrainingResult:
     """Results from training with imbalance handling"""
     strategy: Union[ImbalanceStrategy, str]
@@ -86,7 +125,7 @@ class ImbalanceTrainingResult:
     class_dist_after: Dict[int, int]
 
     # Validation metrics
-    val_metrics: Dict[str, float] = field(default_factory=dict)
+    val_metrics: ValidationMetrics = None
 
     def summary(self):
         """Print a summary of the training configuration"""
@@ -112,7 +151,7 @@ class ImbalanceTrainingResult:
 
         if self.val_metrics:
             print(f"\nValidation Metrics:")
-            for metric, value in self.val_metrics.items():
+            for metric, value in vars(self.val_metrics).items():
                 print(f"  {metric}: {value:.4f}")
         print(f"{'=' * 70}\n")
 
@@ -385,13 +424,13 @@ def train_with_imbalance_handling(
     # Calculate validation metrics using shared prediction utility
     y_val_pred, y_val_pred_proba = get_predictions(model, X_val, threshold=0.5, verbose=model_verbosity)
 
-    val_metrics = {
-        'accuracy': accuracy_score(y_val, y_val_pred),
-        'precision': precision_score(y_val, y_val_pred, zero_division=0),
-        'recall': recall_score(y_val, y_val_pred, zero_division=0),
-        'f1': f1_score(y_val, y_val_pred, zero_division=0),
-        'roc_auc': roc_auc_score(y_val, y_val_pred_proba)
-    }
+    val_metrics = ValidationMetrics(
+        accuracy=accuracy_score(y_val, y_val_pred),
+        precision=precision_score(y_val, y_val_pred, zero_division=0),
+        recall=recall_score(y_val, y_val_pred, zero_division=0),
+        f1=f1_score(y_val, y_val_pred, zero_division=0),
+        roc_auc=roc_auc_score(y_val, y_val_pred_proba)
+    )
 
     # Create result object
     result = ImbalanceTrainingResult(
@@ -562,13 +601,13 @@ def optimize_imbalance_strategy(
             if optimize_for_str == 'recall_weighted':
                 # Calculate weighted score using helper function
                 weighted_score = calculate_recall_weighted(
-                    result.val_metrics['roc_auc'],
-                    result.val_metrics['recall'],
-                    result.val_metrics['f1']
+                    result.val_metrics.roc_auc,
+                    result.val_metrics.recall,
+                    result.val_metrics.f1
                 )
                 print(f"\n   Finished Training: ✓ {optimize_for_str}: {weighted_score:.4f}")
             else:
-                print(f"\n   Finished Training: ✓ {optimize_for_str}: {result.val_metrics[optimize_for_str]:.4f}")
+                print(f"\n   Finished Training: ✓ {optimize_for_str}: {getattr(result.val_metrics, optimize_for_str):.4f}")
 
     # Create comparison DataFrame
     comparison_data = []
@@ -576,7 +615,7 @@ def optimize_imbalance_strategy(
         row = {
             'strategy': strategy_key,
             'samples': result.samples_after,
-            **result.val_metrics
+            **result.val_metrics.to_dict()
         }
         comparison_data.append(row)
 
