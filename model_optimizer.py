@@ -240,12 +240,13 @@ def train_with_imbalance_handling(
         class_weight_dict=None,
         auto_calculate_weights=True,
         epochs=50,
+        batch_size=256,
         callbacks=None,
         random_state=42,
         train_fn=None,
         verbose=True,
         model_verbosity=1
-):
+) -> ImbalanceTrainingResult:
     """
     Train a model with different imbalance handling strategies.
 
@@ -272,6 +273,8 @@ def train_with_imbalance_handling(
         Auto-calculate class weights when needed
     epochs : int
         Number of training epochs
+    batch_size : int
+        Batch size for training (default 256)
     callbacks : list, optional
         Keras callbacks
     random_state : int
@@ -368,7 +371,7 @@ def train_with_imbalance_handling(
             from model_trainer import train_model_with_class_weights
         history = train_model_with_class_weights(
             model, X_train_final, y_train_final, X_val, y_val,
-            weights, epochs=epochs, callbacks=callbacks, model_verbosity=model_verbosity
+            weights, epochs=epochs, batch_size=batch_size, callbacks=callbacks, model_verbosity=model_verbosity
         )
     else:
         # Custom train function - don't pass model_verbosity (may not be supported)
@@ -419,6 +422,7 @@ def optimize_imbalance_strategy(
         smote_ratios=None,
         optimize_for: Union[OptimizationMetric, str] = OptimizationMetric.F1,
         epochs=50,
+        batch_size=256,
         callbacks=None,
         random_state=42,
         train_fn=None,
@@ -452,6 +456,8 @@ def optimize_imbalance_strategy(
           Weighted score (0.3*roc_auc + 0.6*recall + 0.1*f1)
     epochs : int
         Training epochs per strategy
+    batch_size : int
+        Batch size for training (default 256)
     callbacks : list, optional
         Keras callbacks
     random_state : int
@@ -536,6 +542,7 @@ def optimize_imbalance_strategy(
             strategy=strategy,
             smote_ratio=ratio,
             epochs=epochs,
+            batch_size=batch_size,
             callbacks=callbacks,
             random_state=random_state,
             train_fn=train_fn,
