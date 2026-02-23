@@ -76,6 +76,7 @@ import lib.model_evaluator as me
 import lib.model_trainer as mt
 import lib.model_optimizer as mo
 import lib.model_comparison as mc
+import lib.model_summary as mdls
 import lib.loan_analysis as la
 import lib.visualization_helpers as vi
 
@@ -92,5 +93,5 @@ __all__ = [
     'precision_score', 'recall_score', 'f1_score', 'roc_auc_score', 'roc_curve',
     'precision_recall_curve', 'LabelEncoder', 'StandardScaler', 'train_test_split', 'compute_class_weight',
     'RandomForestClassifier', 'SMOTE', 'plt', 'sns', 'Image', 'display', 'HTML',
-    'tu', 'wr', 'dc', 'da', 'ca', 'utl', 'ddl', 'cib', 'fe', 'me', 'mt', 'mo', 'mc', 'la', 'vi'
+    'tu', 'wr', 'dc', 'da', 'ca', 'utl', 'ddl', 'cib', 'fe', 'me', 'mt', 'mo', 'mc', 'mdls', 'la', 'vi'
 ]
