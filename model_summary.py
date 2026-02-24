@@ -11,9 +11,15 @@ except ImportError:
     from feature_engineering import PreparedData
     from utility import get_model_architecture_info, ModelArchitectureInfo
 
+from keras.callbacks import EarlyStopping
+from collections.abc import Callable
 def generate_model_selection_summary(comparison: OptimizationComparison, best_result: ImbalanceTrainingResult,
                                      model_eval_results: ModelEvaluationResult, data: PreparedData,
-                                     imbalance_analysis: ImbalanceAnalysisResult):
+                                     imbalance_analysis: ImbalanceAnalysisResult,
+                                     early_stop: EarlyStopping,
+                                     cost_benefit_fn: Callable[[float, float, float, float, float], str],
+                                     monitoring_explanation: Callable[[EarlyStopping, int], str]):
+    #= lambda x: f"**{x.monitor}** is used to monitor training performance"):
     """
     Generate a comprehensive model selection summary with actual calculated values.
 
@@ -29,9 +35,21 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
         The prepared data object with train/val/test splits
     result_obj : ImbalanceAnalysisResult
         Class imbalance analysis result
+    cost_benefit_fn : callable, optional
+        Function that takes (threshold, fn, fp, tp, tn) and returns a formatted string
+        for cost-benefit analysis. If None, uses default loan default cost analysis.
     """
     from IPython.display import display, Markdown
     import numpy as np
+
+    def readable_class_dist(class_dist: dict) -> str:
+        return ", ".join(f"({k}:{v:,})" for k, v in class_dist.items())
+        # description = ""
+        # separator = ""
+        # for k, v in class_dist.items():
+        #     description += separator + f"({k}:{v:,})"
+        #     separator = ", "
+        # return description
 
     # Extract values
     best_strategy = comparison.best_strategy
@@ -123,20 +141,30 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
     comparison_rows = []
     for strategy_name, strategy_result in comparison.results.items():
         train_samples = sum(strategy_result.class_dist_after.values())
-        class_dist = str(strategy_result.class_dist_after)
-        val_auc = strategy_result.val_metrics.roc_auc
-
+        #class_dist = str(strategy_result.class_dist_after)
+        distribution = readable_class_dist(strategy_result.class_dist_after)
+        #val_auc = strategy_result.val_metrics.roc_auc
+        # print("=" * 70)
+        # print(f"strategy_result.history: {strategy_result.history}")
+        # print("=" * 70)
+        # print(f"strategy_result.history.history: {strategy_result.history.history}")
+        # print("=" * 70)
+        # print(f"early_stop.monitor: {early_stop.monitor}")
+        # print("=" * 70)
         # Get best epoch from history if available
-        if hasattr(strategy_result.history, 'history') and 'val_auc' in strategy_result.history.history:
-            val_auc_list = strategy_result.history.history['val_auc']
-            epoch = val_auc_list.index(max(val_auc_list)) + 1
+        if hasattr(strategy_result.history, 'history') and early_stop.monitor in strategy_result.history.history:
+            monitor_list = strategy_result.history.history[early_stop.monitor]
+            max_monitor_val = max(monitor_list)
+            epoch = monitor_list.index(max_monitor_val) + 1
         else:
             epoch = len(strategy_result.history.epoch) if hasattr(strategy_result.history, 'epoch') else 'N/A'
+            max_monitor_val = np.nan
 
-        comparison_rows.append(f"| **{strategy_name}** | {train_samples:,} | {class_dist} | {val_auc:.4f} | {epoch} |")
+        comparison_rows.append(f"| **{strategy_name}** | {train_samples:,} | {distribution} | {max_monitor_val:.4f} | {epoch} |")
 
     comparison_table = "\n".join(comparison_rows)
 
+    #TODO: FIX ME! hard coded class names, capped at 2 classes (see below)
     # Generate markdown
     md = f"""# Model Selection Summary: Findings and Motivations
 
@@ -149,6 +177,7 @@ After comprehensive experimentation with imbalance handling strategies and thres
 
 ### The Challenge
 Our dataset exhibits **{imbalance_analysis.severity}**:
+#### TODO: FIX ME! hard coded class names, capped at 2 classes
 - **Class 0 (Paid)**: {class_0_count:,} samples ({class_0_pct:.2f}%)
 - **Class 1 (Default)**: {class_1_count:,} samples ({class_1_pct:.2f}%)
 - **Imbalance Ratio**: {imbalance_ratio}
@@ -156,7 +185,7 @@ Our dataset exhibits **{imbalance_analysis.severity}**:
 ### Strategies Tested
 We compared {len(comparison.results)} imbalance handling strategies:
 
-| Strategy | Training Samples | Class Distribution | Validation AUC | Best Epoch |
+| Strategy | Training Samples | Class Distribution | Validation {early_stop.monitor} | Best Epoch |
 |----------|------------------|-------------------|----------------|------------|
 {comparison_table}
 
@@ -175,7 +204,7 @@ We compared {len(comparison.results)} imbalance handling strategies:
     #best_strategy_safe = best_strategy.replace('%', '%%') if best_strategy else ''
     md += f"""### Why {best_strategy}?
 
-1. **Best Validation Performance**: Achieved highest validation AUC of **{best_val_auc:.4f}**, outperforming all other strategies
+1. **Best Validation Performance**: Achieved highest validation {early_stop.monitor} of **{best_val_auc:.4f}**, outperforming all other strategies
 2. **Optimal Training Signal**: Converged at epoch {best_epoch}
 
 ---
@@ -184,11 +213,7 @@ We compared {len(comparison.results)} imbalance handling strategies:
 
 ### Monitoring Metric: Validation AUC
 
-We chose **`monitor='val_auc'`** with **`patience=5`** because:
-
-1. **AUC is Threshold-Independent**: Measures model's ability to rank predictions correctly
-2. **Robust to Imbalance**: Unlike accuracy, AUC evaluates performance across all possible thresholds
-3. **Prevents Overfitting**: Model stopped at epoch {best_epoch} when validation AUC plateaued
+{monitoring_explanation(early_stop, best_epoch)}
 
 **Training Dynamics**:
 - Best epoch: {best_epoch}
@@ -198,7 +223,7 @@ We chose **`monitor='val_auc'`** with **`patience=5`** because:
 
 ## 3. Threshold Optimization Strategy
 
-### Optimization Metric: RECALL_WEIGHTED
+### Optimization Metric: {comparison.best_metric}
 
 **Why Recall-Weighted Optimization?**
 
@@ -210,20 +235,7 @@ In loan default prediction, **missing a default (False Negative) is far more cos
 1. **High Recall**: Achieves **{recall_pct:.2f}% recall**, catching {defaults_caught} out of {total_defaults} defaults
 2. **Business Alignment**: Prioritizes default detection over false positives
 
-**Cost-Benefit Analysis**:
-```
-Assume average loan: $15,000
-Assume default recovery rate: 30%
-
-Per loan costs:
-- False Negative (missed default): $15,000 × 70% = $10,500 loss
-- False Positive (incorrect flag): ~$500 manual review cost
-
-At threshold {best_threshold}:
-- Missed defaults (FN): {fn} × $10,500 = ${fn * 10500:,}
-- Incorrect flags (FP): {fp} × $500 = ${fp * 500:,}
-- Total cost: ${(fn * 10500) + (fp * 500):,}
-```
+{cost_benefit_fn(best_threshold, fn, fp, tp, tn)}
 
 ---
 
