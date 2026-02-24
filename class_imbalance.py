@@ -28,6 +28,7 @@ except ImportError:
 @dataclass
 class ClassAnalysisItem:
     class_label: Any
+    class_label_display: str
     count: int
     percentage: float
     ratio_to_majority: float
@@ -36,8 +37,11 @@ class ClassAnalysisItem:
 
 @dataclass
 class ImbalanceAnalysisResult:
+    target_column: str
     n_classes: int
     total_samples: int
+    minority_index: int
+    majority_index: int
     majority_class: Any
     majority_count: int
     minority_class: Any
@@ -47,9 +51,11 @@ class ImbalanceAnalysisResult:
     severity: str
     recommended_action: str
     class_analysis: list[ClassAnalysisItem]
+    class_names: list[Any]
 
     def display(self):
         tu.print_heading("CLASS IMBALANCE ANALYSIS")
+        tu.print_sub_heading(f"Target column: {self.target_column}")
         tu.print_sub_heading(f"Number of classes: {self.n_classes}")
         tu.print_sub_heading(f"Total samples: {self.total_samples:,}")
         print(f"\nClass Distribution:")
@@ -59,7 +65,7 @@ class ImbalanceAnalysisResult:
         for item in sorted_analysis:
             bar_length = int(item.percentage / 2)
             bar = "█" * bar_length
-            print(f"  Class {item.class_label:>10}: {item.count:>8,} ({item.percentage:>6.2f}%) {bar}")
+            print(f"  {item.class_label_display:>15}: {item.count:>8,} ({item.percentage:>6.2f}%) {bar}")
 
         print("\n" + "-" * 70)
         print(f"Majority class: {self.majority_class} ({self.majority_count:,} samples)")
@@ -68,32 +74,44 @@ class ImbalanceAnalysisResult:
         print(f"\nSeverity: {self.severity}")
         print(f"Recommended action: {self.recommended_action}")
 
+    def display_markdown(self) -> str:
+        """Generate a markdown formatted summary of the imbalance analysis."""
+        md = f"Our dataset exhibits **{self.severity}** for **{self.target_column}**:\n\n"
 
-def check_imbalance(class_counts, verbose=True):
+        # Class distribution
+        sorted_analysis = sorted(self.class_analysis, key=lambda x: x.count, reverse=True)
+        for item in sorted_analysis:
+            md += f"- **{item.class_label_display}**: {item.count:,} samples ({item.percentage:.2f}%)\n"
+
+        md += f"- **Imbalance Ratio**: {self.imbalance_ratio}\n"
+
+        return md
+
+
+def check_imbalance(target_series: pd.Series, class_labels: dict = None, verbose: bool = True) -> ImbalanceAnalysisResult:
     """
     Check if dataset is imbalanced for binary or multi-class problems
 
     Parameters:
     -----------
-    class_counts : dict, pd.Series, or array-like
-        Counts of each class {class_label: count} or array of counts
-    verbose : bool
+    target_series : pd.Series
+        The target/label column from your dataframe (e.g., df['loan_status'] or y_train)
+        The Series.name will be used as the target column name in the report
+    class_labels : dict, optional
+        Mapping of class values to human-readable labels {class_value: "Display Name"}
+        Example: {0: "Paid", 1: "Default"}
+    verbose : bool, default=True
         Whether to print detailed information
 
     Returns:
     --------
-    dict with comprehensive imbalance analysis
+    ImbalanceAnalysisResult with comprehensive imbalance analysis
     """
-    # Convert to dict format
-    if isinstance(class_counts, pd.Series):
-        class_dict = class_counts.to_dict()
-        counts = class_counts.values
-    elif isinstance(class_counts, dict):
-        class_dict = class_counts
-        counts = np.array(list(class_counts.values()))
-    else:
-        counts = np.array(class_counts)
-        class_dict = {i: count for i, count in enumerate(counts)}
+    # Extract column name and calculate value counts
+    target_column = target_series.name if target_series.name else "target"
+    class_counts = target_series.value_counts()
+    class_dict = class_counts.to_dict()
+    counts = class_counts.values
 
     # Basic statistics
     total = counts.sum()
@@ -125,15 +143,22 @@ def check_imbalance(class_counts, verbose=True):
 
     # Per-class analysis
     class_analysis = []
-    class_labels = list(class_dict.keys())
+    class_values = list(class_dict.keys())
 
     for i, (label, count) in enumerate(class_dict.items()):
         percentage = (count / total) * 100
         ratio_to_majority = majority_count / count if count > 0 else np.inf
         ratio_to_minority = count / minority_count if minority_count > 0 else np.inf
 
+        # Determine display label
+        if class_labels and label in class_labels:
+            display_label = f"Class {label} ({class_labels[label]})"
+        else:
+            display_label = f"Class {label}"
+
         class_analysis.append(ClassAnalysisItem(
             class_label=label,
+            class_label_display=display_label,
             count=count,
             percentage=percentage,
             ratio_to_majority=ratio_to_majority,
@@ -141,17 +166,21 @@ def check_imbalance(class_counts, verbose=True):
         ))
 
     result = ImbalanceAnalysisResult(
+        target_column=target_column,
         n_classes=n_classes,
         total_samples=int(total),
-        majority_class=class_labels[majority_idx],
+        minority_index=minority_idx,
+        majority_index=majority_idx,
+        majority_class=class_values[majority_idx],
         majority_count=int(majority_count),
-        minority_class=class_labels[minority_idx],
+        minority_class=class_values[minority_idx],
         minority_count=int(minority_count),
         minority_percentage=f"{(minority_count / total) * 100:.2f}%",
         imbalance_ratio=f"{ratio:.2f}:1",
         severity=severity,
         recommended_action=action,
-        class_analysis=class_analysis
+        class_analysis=class_analysis,
+        class_names=class_values
     )
 
     if verbose:
