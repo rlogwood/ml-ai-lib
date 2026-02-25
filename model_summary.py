@@ -23,7 +23,6 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
                                      business_impact: Callable[[int, int, float, int, float], str],
                                      executive_summary: Callable[[], str],
                                      class_labels: dict = None):
-    #= lambda x: f"**{x.monitor}** is used to monitor training performance"):
     """
     Generate a comprehensive model selection summary with actual calculated values.
 
@@ -57,33 +56,16 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
     """
     from IPython.display import display, Markdown
     import numpy as np
+    import textwrap
 
     def readable_class_dist(class_dist: dict) -> str:
         return ", ".join(f"({k}:{v:,})" for k, v in class_dist.items())
-        # description = ""
-        # separator = ""
-        # for k, v in class_dist.items():
-        #     description += separator + f"({k}:{v:,})"
-        #     separator = ", "
-        # return description
 
     # Extract values
     best_strategy = comparison.best_strategy
-    #best_threshold_info = results['best_threshold']
-    #best_threshold_info = results.best_threshold
-    #best_threshold = best_threshold_info['threshold']
-    #best_threshold =
-
     test_auc = model_eval_results.auc
     cm = model_eval_results.confusion_matrix
     tn, fp, fn, tp = cm.flatten().tolist()
-
-    # Convert numpy types to Python native types for formatting
-    # tn = int(tn)
-    # fp = int(fp)
-    # fn = int(fn)
-    # tp = int(tp)
-
     best_threshold = model_eval_results.best_threshold
 
     # Best result training info
@@ -123,14 +105,6 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
         train_samples = sum(strategy_result.class_dist_after.values())
         #class_dist = str(strategy_result.class_dist_after)
         distribution = readable_class_dist(strategy_result.class_dist_after)
-        #val_auc = strategy_result.val_metrics.roc_auc
-        # print("=" * 70)
-        # print(f"strategy_result.history: {strategy_result.history}")
-        # print("=" * 70)
-        # print(f"strategy_result.history.history: {strategy_result.history.history}")
-        # print("=" * 70)
-        # print(f"early_stop.monitor: {early_stop.monitor}")
-        # print("=" * 70)
         # Get best epoch from history if available
         if hasattr(strategy_result.history, 'history') and early_stop.monitor in strategy_result.history.history:
             monitor_list = strategy_result.history.history[early_stop.monitor]
@@ -151,113 +125,116 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
     print(f"Model summary:\n{model_summary_str}")
 
     # Generate markdown
-    md = f"""# Model Selection Summary: Findings and Motivations
+    md = textwrap.dedent("""\
+        # Model Selection Summary: Findings and Motivations (2)
 
-{executive_summary}
----
+        {executive_summary}
 
-## 1. Imbalance Handling Strategy Selection
+        ---
+        ## 1. Imbalance Handling Strategy Selection
+        ### The Challenge
 
-### The Challenge
-{imbalance_analysis.display_markdown()}
+        {imbalance_display}
 
-### Strategies Tested
-We compared {len(comparison.results)} imbalance handling strategies:
+        ### Strategies Tested
+        We compared {num_strategies} imbalance handling strategies:
 
-| Strategy | Training Samples | Class Distribution | Validation {early_stop.monitor} | Best Epoch |
-|----------|------------------|-------------------|----------------|------------|
-{comparison_table}
+        | Strategy | Training Samples | Class Distribution | Validation {monitor} | Best Epoch |
+        |----------|------------------|-------------------|----------------|------------|
+        {comparison_table}
+    """).format(
+        executive_summary=executive_summary,
+        imbalance_display=imbalance_analysis.display_markdown(),
+        num_strategies=len(comparison.results),
+        monitor=early_stop.monitor,
+        comparison_table=comparison_table,
+    )
 
-"""
     # Add class weights section if available
     md += best_result.display_markdown(class_labels=class_labels)
-    #best_strategy_safe = best_strategy.replace('%', '%%') if best_strategy else ''
-    md += f"""### Why {best_strategy}?
 
-1. **Best Validation Performance**: Achieved highest validation {early_stop.monitor} of **{best_val_auc:.4f}**, outperforming all other strategies
-2. **Optimal Training Signal**: Converged at epoch {best_epoch}
+    # Pre-compute expressions that can't go directly in .format()
+    tn_pct = tn / (tn + fp) * 100
+    fp_pct = fp / (tn + fp) * 100
+    fn_pct = fn / (fn + tp) * 100
+    tp_pct = tp / (fn + tp) * 100
+    precision_pct = precision * 100
 
----
+    md += textwrap.dedent("""\
+        ### Why {best_strategy}?
+        1. **Best Validation Performance**: Achieved highest validation {monitor} of **{best_val_auc:.4f}**, outperforming all other strategies
+        2. **Optimal Training Signal**: Converged at epoch {best_epoch}
+        ---
+        ## 2. Early Stopping Strategy
+        ### Monitoring Metric: Validation AUC
+        {monitoring_explanation}
+        **Training Dynamics**:
+        - Best epoch: {best_epoch}
+        - Best val_auc: **{best_val_auc:.4f}**
+        ---
+        ## 3. Threshold Optimization Strategy
+        ### Optimization Metric: {best_metric}
+        **Why Recall-Weighted Optimization?**
+        In loan default prediction, **missing a default (False Negative) is far more costly** than incorrectly flagging a paid loan as default (False Positive). Our business priority is to **maximize default detection** while maintaining reasonable precision.
+        ### Selected Threshold: {best_threshold}
+        **Rationale**:
+        1. **High Recall**: Achieves **{recall_pct:.2f}% recall**, catching {defaults_caught} out of {total_defaults} defaults
+        2. **Business Alignment**: Prioritizes default detection over false positives
+        {cost_benefit}
+        ---
+        ## 4. Final Model Performance
+        ### Test Set Results (Threshold = {best_threshold})
+        **Confusion Matrix**:
+        
+        |                      | Predicted Paid | Predicted Default |
+        |----------------------|----------------|-------------------|
+        | **Actually  Paid**   | {tn:,}         | {fp:,}            |
+        | **Actually Default** | {fn}           | {tp}              |
 
-## 2. Early Stopping Strategy
+        **Breakdown**:
+        - **True Negatives (TN)**: {tn:,} ({tn_pct:.1f}% of paid loans correctly identified)
+        - **False Positives (FP)**: {fp:,} ({fp_pct:.1f}% of paid loans flagged for review)
+        - **False Negatives (FN)**: {fn} ({fn_pct:.1f}% missed defaults - CRITICAL METRIC)
+        - **True Positives (TP)**: {tp} ({tp_pct:.1f}% defaults caught)
+        **Key Metrics**:
+        - **Test AUC-ROC**: {test_auc:.4f}
+        - **Recall (Default Class)**: {recall_pct:.2f}%
+        - **Precision (Default Class)**: {precision_pct:.2f}%
+        ### Why This Trade-off Makes Sense
+        {trade_off}
+        ---
+        ## 5. Model Architecture
+        **Neural Network Configuration**:
+        ```
+        {model_summary_str}
+        ```
+        ---
+        ## 6. Key Takeaways
+        {business_impact}
+        ---
+    """).format(
+        best_strategy=best_strategy,
+        monitor=early_stop.monitor,
+        best_val_auc=best_val_auc,
+        best_epoch=best_epoch,
+        monitoring_explanation=monitoring_explanation(early_stop, best_epoch),
+        best_metric=comparison.best_metric,
+        best_threshold=best_threshold,
+        recall_pct=recall_pct,
+        defaults_caught=defaults_caught,
+        total_defaults=total_defaults,
+        cost_benefit=cost_benefit_fn(best_threshold, fn, fp, tp, tn),
+        tn=tn, fp=fp, fn=fn, tp=tp,
+        tn_pct=tn_pct, fp_pct=fp_pct, fn_pct=fn_pct, tp_pct=tp_pct,
+        test_auc=test_auc,
+        precision_pct=precision_pct,
+        trade_off=trade_off_discussion(baseline_catch_rate, recall_pct),
+        model_summary_str=model_summary_str,
+        business_impact=business_impact(defaults_caught, total_defaults, recall_pct, baseline_catch_rate,
+                                        best_threshold),
+    )
 
-### Monitoring Metric: Validation AUC
-
-{monitoring_explanation(early_stop, best_epoch)}
-
-**Training Dynamics**:
-- Best epoch: {best_epoch}
-- Best val_auc: **{best_val_auc:.4f}**
-
----
-
-## 3. Threshold Optimization Strategy
-
-### Optimization Metric: {comparison.best_metric}
-
-**Why Recall-Weighted Optimization?**
-
-In loan default prediction, **missing a default (False Negative) is far more costly** than incorrectly flagging a paid loan as default (False Positive). Our business priority is to **maximize default detection** while maintaining reasonable precision.
-
-### Selected Threshold: {best_threshold}
-
-**Rationale**:
-1. **High Recall**: Achieves **{recall_pct:.2f}% recall**, catching {defaults_caught} out of {total_defaults} defaults
-2. **Business Alignment**: Prioritizes default detection over false positives
-
-{cost_benefit_fn(best_threshold, fn, fp, tp, tn)}
-
----
-
-## 4. Final Model Performance
-
-### Test Set Results (Threshold = {best_threshold})
-
-**Confusion Matrix**:
-```
-                Predicted
-                Paid    Default
-Actual  Paid     {tn:,}      {fp:,}
-        Default   {fn}        {tp}
-```
-
-**Breakdown**:
-- **True Negatives (TN)**: {tn:,} ({(tn / (tn + fp) * 100):.1f}% of paid loans correctly identified)
-- **False Positives (FP)**: {fp:,} ({(fp / (tn + fp) * 100):.1f}% of paid loans flagged for review)
-- **False Negatives (FN)**: {fn} ({(fn / (fn + tp) * 100):.1f}% missed defaults - CRITICAL METRIC)
-- **True Positives (TP)**: {tp} ({(tp / (fn + tp) * 100):.1f}% defaults caught)
-
-**Key Metrics**:
-- **Test AUC-ROC**: {test_auc:.4f}
-- **Recall (Default Class)**: {recall_pct:.2f}%
-- **Precision (Default Class)**: {precision * 100:.2f}%
-
-### Why This Trade-off Makes Sense
-{trade_off_discussion(baseline_catch_rate, recall_pct)}
-
----
-
-## 5. Model Architecture
-
-**Neural Network Configuration**:
-```
-{model_summary_str}
-```
----
-
-## 6. Key Takeaways
-
-{business_impact(defaults_caught, total_defaults, recall_pct, baseline_catch_rate, best_threshold)}
----
-"""
 
     display(Markdown(md))
     return md
 
-# Generate and display the summary
-# NOTE: All required variables should exist from previous cells:
-#   - comparison: from cell 34
-#   - best_result: from cell 34
-#   - results: from cell 35 (MUST RUN CELL 35 FIRST!)
-#   - data: from cell 30
-#   - result: from cell 19
