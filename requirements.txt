@@ -17,7 +17,7 @@ seaborn>=0.12.0
 Pillow>=10.0.0
 
 # Jupyter/IPython
-ipython>=8.12.0
+ipython>=8.30.0
 jupyter>=1.0.0
 
 # Testing (optional, for development)
