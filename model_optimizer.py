@@ -394,7 +394,7 @@ def train_with_imbalance_handling(
             class_weight_dict = dict(zip(classes.astype(int), weights))
             if verbose:
                 print(f"\n📊 Auto-calculated class weights: {class_weight_dict}")
-    else:
+    elif class_weight_dict is not None:
         # raise error for other strategies, class_weight_dict is not required
         raise ValueError(
             f"Class weights not supported for strategy {strategy}, use ImbalanceStrategy.CLASS_WEIGHTS or ImbalanceStrategy.SMOTE_PARTIAL_WEIGHTS"
