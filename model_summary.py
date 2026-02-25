@@ -61,6 +61,28 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
     def readable_class_dist(class_dist: dict) -> str:
         return ", ".join(f"({k}:{v:,})" for k, v in class_dist.items())
 
+    def comparison_table():
+        # Build comparison table
+        comparison_rows = []
+        for strategy_name, strategy_result in comparison.results.items():
+            train_samples = sum(strategy_result.class_dist_after.values())
+            # class_dist = str(strategy_result.class_dist_after)
+            distribution = readable_class_dist(strategy_result.class_dist_after)
+            # Get best epoch from history if available
+            if hasattr(strategy_result.history, 'history') and early_stop.monitor in strategy_result.history.history:
+                monitor_list = strategy_result.history.history[early_stop.monitor]
+                max_monitor_val = max(monitor_list)
+                epoch = monitor_list.index(max_monitor_val) + 1
+            else:
+                epoch = len(strategy_result.history.epoch) if hasattr(strategy_result.history, 'epoch') else 'N/A'
+                max_monitor_val = np.nan
+
+            comparison_rows.append(
+                f"| **{strategy_name}** | {train_samples:,} | {distribution} | {max_monitor_val:.4f} | {epoch} |")
+
+        comparison_table = "\n".join(comparison_rows)
+        return comparison_table
+
     # Extract values
     best_strategy = comparison.best_strategy
     test_auc = model_eval_results.auc
@@ -99,24 +121,6 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
     print(f"Model family: {arch_info.model_family}")  # "tree_ensemble"
     print(f"Config: {arch_info.config}")  # {'n_estimators': 100, 'max_depth': 10, ...}
 
-    # Build comparison table
-    comparison_rows = []
-    for strategy_name, strategy_result in comparison.results.items():
-        train_samples = sum(strategy_result.class_dist_after.values())
-        #class_dist = str(strategy_result.class_dist_after)
-        distribution = readable_class_dist(strategy_result.class_dist_after)
-        # Get best epoch from history if available
-        if hasattr(strategy_result.history, 'history') and early_stop.monitor in strategy_result.history.history:
-            monitor_list = strategy_result.history.history[early_stop.monitor]
-            max_monitor_val = max(monitor_list)
-            epoch = monitor_list.index(max_monitor_val) + 1
-        else:
-            epoch = len(strategy_result.history.epoch) if hasattr(strategy_result.history, 'epoch') else 'N/A'
-            max_monitor_val = np.nan
-
-        comparison_rows.append(f"| **{strategy_name}** | {train_samples:,} | {distribution} | {max_monitor_val:.4f} | {epoch} |")
-
-    comparison_table = "\n".join(comparison_rows)
 
     summary_lines = []
     best_model.summary(print_fn=lambda x: summary_lines.append(x))
@@ -147,7 +151,7 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
         imbalance_display=imbalance_analysis.display_markdown(),
         num_strategies=len(comparison.results),
         monitor=early_stop.monitor,
-        comparison_table=comparison_table,
+        comparison_table=comparison_table(),
     )
 
     # Add class weights section if available
@@ -196,6 +200,7 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
         - **False Positives (FP)**: {fp:,} ({fp_pct:.1f}% of paid loans flagged for review)
         - **False Negatives (FN)**: {fn} ({fn_pct:.1f}% missed defaults - CRITICAL METRIC)
         - **True Positives (TP)**: {tp} ({tp_pct:.1f}% defaults caught)
+        
         **Key Metrics**:
         - **Test AUC-ROC**: {test_auc:.4f}
         - **Recall (Default Class)**: {recall_pct:.2f}%
