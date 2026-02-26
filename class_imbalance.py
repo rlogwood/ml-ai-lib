@@ -3,27 +3,10 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-
-# handle lib imports
-# try:
-#     # When imported as part of a package
-#     from . import text_util as tu, utility as utl, imputer as im
-# except ImportError:
-#     # When run as a standalone script
-#     import text_util as tu
-#     import utility as utl
-#     import imputer as im
-
-#import text_util as tu
-#import utility as utl
-#import imputer as im
-
-# class_imbalance.py
 try:
     import lib.text_util as tu
 except ImportError:
     import text_util as tu
-
 
 @dataclass
 class ClassAnalysisItem:
@@ -33,7 +16,6 @@ class ClassAnalysisItem:
     percentage: float
     ratio_to_majority: float
     ratio_to_minority: float
-
 
 @dataclass
 class ImbalanceAnalysisResult:
@@ -46,6 +28,8 @@ class ImbalanceAnalysisResult:
     majority_count: int
     minority_class: Any
     minority_count: int
+    majority_label: str
+    minority_label: str
     minority_percentage: str
     imbalance_ratio: str
     severity: str
@@ -62,14 +46,18 @@ class ImbalanceAnalysisResult:
         print("-" * 70)
 
         sorted_analysis = sorted(self.class_analysis, key=lambda x: x.count, reverse=True)
+        width = max(len(item.class_label_display) for item in sorted_analysis)
         for item in sorted_analysis:
             bar_length = int(item.percentage / 2)
             bar = "█" * bar_length
-            print(f"  {item.class_label_display:>15}: {item.count:>8,} ({item.percentage:>6.2f}%) {bar}")
+            print(f"  {item.class_label_display:{width}} : {item.count:>8,} ({item.percentage:>5.2f}%) {bar}")
 
-        print("\n" + "-" * 70)
-        print(f"Majority class: {self.majority_class} ({self.majority_count:,} samples)")
-        print(f"Minority class: {self.minority_class} ({self.minority_count:,} samples)")
+        print("-" * 70)
+        majority_label = f"Majority Class {self.majority_class} ({self.majority_label})"
+        minority_label = f"Minority Class {self.minority_class} ({self.minority_label})"
+        width = max(len(majority_label),len(minority_label))
+        print(f"{majority_label:{width}} : ({self.majority_count:,} samples)")
+        print(f"{minority_label:{width}} : ({self.minority_count:,} samples)")
         print(f"Imbalance ratio: {self.imbalance_ratio}")
         print(f"\nSeverity: {self.severity}")
         print(f"Recommended action: {self.recommended_action}")
@@ -86,7 +74,6 @@ class ImbalanceAnalysisResult:
         md += f"- **Imbalance Ratio**: {self.imbalance_ratio}\n"
 
         return md
-
 
 def check_imbalance(target_series: pd.Series, class_labels: dict = None, verbose: bool = True) -> ImbalanceAnalysisResult:
     """
@@ -175,6 +162,8 @@ def check_imbalance(target_series: pd.Series, class_labels: dict = None, verbose
         majority_count=int(majority_count),
         minority_class=class_values[minority_idx],
         minority_count=int(minority_count),
+        majority_label=class_labels[majority_idx],
+        minority_label=class_labels[minority_idx],
         minority_percentage=f"{(minority_count / total) * 100:.2f}%",
         imbalance_ratio=f"{ratio:.2f}:1",
         severity=severity,
