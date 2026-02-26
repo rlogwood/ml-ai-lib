@@ -13,15 +13,20 @@ except ImportError:
 
 from keras.callbacks import EarlyStopping
 from collections.abc import Callable
-def generate_model_selection_summary(comparison: OptimizationComparison, best_result: ImbalanceTrainingResult,
-                                     model_eval_results: ModelEvaluationResult, data: PreparedData,
+def generate_model_selection_summary(comparison: OptimizationComparison,
+                                     best_result: ImbalanceTrainingResult,
+                                     model_eval_results: ModelEvaluationResult,
+                                     data: PreparedData,
                                      imbalance_analysis: ImbalanceAnalysisResult,
                                      early_stop: EarlyStopping,
+                                     # summary plug-ins
                                      cost_benefit_fn: Callable[[float, float, float, float, float], str],
                                      monitoring_explanation: Callable[[EarlyStopping, int], str],
                                      trade_off_discussion: Callable[[int, float], str],
                                      business_impact: Callable[[int, int, float, int, float], str],
                                      executive_summary: Callable[[], str],
+
+                                     # class labels
                                      class_labels: dict = None):
     """
     Generate a comprehensive model selection summary with actual calculated values.
@@ -147,7 +152,7 @@ def generate_model_selection_summary(comparison: OptimizationComparison, best_re
         |----------|------------------|-------------------|----------------|------------|
         {comparison_table}
     """).format(
-        executive_summary=executive_summary,
+        executive_summary=executive_summary(),
         imbalance_display=imbalance_analysis.display_markdown(),
         num_strategies=len(comparison.results),
         monitor=early_stop.monitor,
